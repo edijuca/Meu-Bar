@@ -1,0 +1,5 @@
+{
+  "name": "Bar Atendimento por Cliente",
+  "description": "A point-of-sale (POS) system for bars that manages orders by customer name instead of tables, focusing on speed and sales tracking. Features include customer and product management, sales processing, purchase history, stock control, and a summary dashboard.",
+  "requestFramePermissions": []
+}
