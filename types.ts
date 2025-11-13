@@ -44,3 +44,10 @@ export interface BarInfo {
   phone: string;
   address: string;
 }
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  password?: string; // NOTE: In a real app, never store or handle plaintext passwords on the client.
+}

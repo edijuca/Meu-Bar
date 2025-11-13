@@ -1,12 +1,12 @@
 import React, { useState, useContext, useMemo } from 'react';
 import { AppContext } from '../context/AppContext';
 import { Customer, Product, SaleItem, HeldOrder } from '../types';
-import { PaymentMethod, PaymentStatus } from '../constants';
+import { PaymentMethod } from '../constants';
 import Modal from './common/Modal';
-import { PlusIcon, TrashIcon, CreditCardIcon, PauseIcon } from './icons';
+import { CreditCardIcon, PauseIcon, TrashIcon } from './icons';
 
 const Sales: React.FC = () => {
-    const { state, dispatch } = useContext(AppContext);
+    const { state, actions } = useContext(AppContext);
     const { customers, products, heldOrders } = state;
 
     const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
@@ -76,19 +76,16 @@ const Sales: React.FC = () => {
         }
     };
 
-    const handleFinalizeSale = () => {
+    const handleFinalizeSale = async () => {
         if (!selectedCustomerId || currentSaleItems.length === 0) return;
 
-        const newSale = {
-            id: `s${Date.now()}`,
+        const newSaleData = {
             customerId: selectedCustomerId,
             items: currentSaleItems,
-            date: new Date().toISOString(),
             total: saleTotal,
             paymentMethod: paymentMethod,
-            paymentStatus: paymentMethod === PaymentMethod.Fiado ? PaymentStatus.Fiado : PaymentStatus.Pago,
         };
-        dispatch({ type: 'ADD_SALE', payload: newSale });
+        await actions.addSale(newSaleData);
         resetSale();
     };
 
@@ -99,28 +96,26 @@ const Sales: React.FC = () => {
         setPaymentMethod(PaymentMethod.Dinheiro);
     };
     
-    const handleHoldOrder = () => {
+    const handleHoldOrder = async () => {
         if (!selectedCustomerId || currentSaleItems.length === 0) return;
-        const newHeldOrder: HeldOrder = {
-            id: `h${Date.now()}`,
+        const newHeldOrderData = {
             customerId: selectedCustomerId,
             items: currentSaleItems,
             total: saleTotal,
-            heldAt: new Date().toISOString(),
         };
-        dispatch({ type: 'HOLD_ORDER', payload: newHeldOrder });
+        await actions.holdOrder(newHeldOrderData);
         resetSale();
     };
     
     const handleResumeOrder = (order: HeldOrder) => {
         setSelectedCustomerId(order.customerId);
         setCurrentSaleItems(order.items);
-        dispatch({ type: 'DELETE_HELD_ORDER', payload: order.id });
+        actions.deleteHeldOrder(order.id);
     };
 
-    const handleDeleteHeldOrder = (orderId: string) => {
+    const handleDeleteHeldOrder = async (orderId: string) => {
         if (window.confirm('Tem certeza que deseja cancelar esta comanda pendente?')) {
-            dispatch({ type: 'DELETE_HELD_ORDER', payload: orderId });
+            await actions.deleteHeldOrder(orderId);
         }
     };
 

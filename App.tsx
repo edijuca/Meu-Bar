@@ -1,4 +1,4 @@
-import React, { useState, useContext, useMemo, useEffect } from 'react';
+import React, { useState, useContext, useMemo } from 'react';
 import { AppProvider, AppContext } from './context/AppContext';
 import Dashboard from './components/Dashboard';
 import Sales from './components/Sales';
@@ -6,7 +6,8 @@ import Customers from './components/Customers';
 import Products from './components/Products';
 import Settings from './components/Settings';
 import Reports from './components/Reports';
-import { ChartBarIcon, ShoppingCartIcon, UsersIcon, CubeIcon, Cog6ToothIcon, DocumentChartBarIcon, ExclamationTriangleIcon, XMarkIcon } from './components/icons';
+import LoginScreen from './components/auth/LoginScreen';
+import { ChartBarIcon, ShoppingCartIcon, UsersIcon, CubeIcon, Cog6ToothIcon, DocumentChartBarIcon, ExclamationTriangleIcon, XMarkIcon, LogoutIcon } from './components/icons';
 import { LOW_STOCK_THRESHOLD } from './constants';
 import { Product } from './types';
 
@@ -16,20 +17,14 @@ interface LowStockNotificationProps {
 }
 
 const LowStockNotification: React.FC<LowStockNotificationProps> = ({ lowStockProducts }) => {
-    const [isVisible, setIsVisible] = useState(false);
-
-    useEffect(() => {
-        if (lowStockProducts.length > 0) {
-            setIsVisible(true);
-        }
-    }, [lowStockProducts]);
+    const [isVisible, setIsVisible] = useState(true);
 
     if (!isVisible || lowStockProducts.length === 0) {
         return null;
     }
 
     return (
-        <div className="fixed bottom-4 right-4 w-80 bg-yellow-600 border border-yellow-500 text-white p-4 rounded-lg shadow-2xl z-50">
+        <div className="fixed bottom-4 right-4 w-80 bg-yellow-600 border border-yellow-500 text-white p-4 rounded-lg shadow-2xl z-50 animate-fade-in-up">
             <div className="flex items-start">
                 <div className="flex-shrink-0">
                     <ExclamationTriangleIcon className="w-6 h-6 text-yellow-200" />
@@ -70,7 +65,7 @@ const NavItem: React.FC<{ icon: React.ReactNode; label: string; isActive: boolea
 
 const AppLayout: React.FC = () => {
     const [currentView, setCurrentView] = useState<View>('dashboard');
-    const { state } = useContext(AppContext);
+    const { state, actions } = useContext(AppContext);
 
     const lowStockProducts = useMemo(
         () => state.products.filter(p => p.stock <= LOW_STOCK_THRESHOLD),
@@ -81,72 +76,46 @@ const AppLayout: React.FC = () => {
 
     const renderView = () => {
         switch (currentView) {
-            case 'dashboard':
-                return <Dashboard />;
-            case 'sales':
-                return <Sales />;
-            case 'customers':
-                return <Customers />;
-            case 'products':
-                return <Products />;
-            case 'reports':
-                return <Reports />;
-            case 'settings':
-                return <Settings />;
-            default:
-                return <Dashboard />;
+            case 'dashboard': return <Dashboard />;
+            case 'sales': return <Sales />;
+            case 'customers': return <Customers />;
+            case 'products': return <Products />;
+            case 'reports': return <Reports />;
+            case 'settings': return <Settings />;
+            default: return <Dashboard />;
         }
     };
     
     return (
         <div className="flex flex-col md:flex-row h-screen font-sans">
-            <nav className="bg-gray-800 w-full md:w-56 p-2 md:p-4 order-last md:order-first flex md:flex-col justify-around md:justify-start md:space-y-2">
+            <nav className="bg-gray-800 w-full md:w-56 p-2 md:p-4 order-last md:order-first flex md:flex-col justify-around md:justify-start">
                 <div className="hidden md:block mb-6">
                     <h1 className="text-2xl font-bold text-white text-center">{state.barInfo.name || 'Bar POS'}</h1>
                 </div>
-                <NavItem
-                    icon={<ChartBarIcon className="w-6 h-6" />}
-                    label="Dashboard"
-                    isActive={currentView === 'dashboard'}
-                    onClick={() => setCurrentView('dashboard')}
-                />
-                <NavItem
-                    icon={<ShoppingCartIcon className="w-6 h-6" />}
-                    label="Vendas"
-                    isActive={currentView === 'sales'}
-                    onClick={() => setCurrentView('sales')}
-                />
-                <NavItem
-                    icon={<UsersIcon className="w-6 h-6" />}
-                    label="Clientes"
-                    isActive={currentView === 'customers'}
-                    onClick={() => setCurrentView('customers')}
-                />
-                <div className="relative w-full">
-                    <NavItem
-                        icon={<CubeIcon className="w-6 h-6" />}
-                        label="Produtos"
-                        isActive={currentView === 'products'}
-                        onClick={() => setCurrentView('products')}
-                    />
-                    {lowStockCount > 0 && (
-                        <span className="absolute top-1 right-1 md:top-2 md:right-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white shadow-md" aria-label={`${lowStockCount} products with low stock`}>
-                            {lowStockCount}
-                        </span>
-                    )}
+                <div className="flex-grow flex md:flex-col justify-around md:justify-start md:space-y-2">
+                    <NavItem icon={<ChartBarIcon className="w-6 h-6" />} label="Dashboard" isActive={currentView === 'dashboard'} onClick={() => setCurrentView('dashboard')}/>
+                    <NavItem icon={<ShoppingCartIcon className="w-6 h-6" />} label="Vendas" isActive={currentView === 'sales'} onClick={() => setCurrentView('sales')}/>
+                    <NavItem icon={<UsersIcon className="w-6 h-6" />} label="Clientes" isActive={currentView === 'customers'} onClick={() => setCurrentView('customers')}/>
+                    <div className="relative w-full">
+                        <NavItem icon={<CubeIcon className="w-6 h-6" />} label="Produtos" isActive={currentView === 'products'} onClick={() => setCurrentView('products')}/>
+                        {lowStockCount > 0 && (
+                            <span className="absolute top-1 right-1 md:top-2 md:right-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white shadow-md" aria-label={`${lowStockCount} products with low stock`}>
+                                {lowStockCount}
+                            </span>
+                        )}
+                    </div>
+                     <NavItem icon={<DocumentChartBarIcon className="w-6 h-6" />} label="Relatórios" isActive={currentView === 'reports'} onClick={() => setCurrentView('reports')}/>
+                     <NavItem icon={<Cog6ToothIcon className="w-6 h-6" />} label="Configurações" isActive={currentView === 'settings'} onClick={() => setCurrentView('settings')}/>
                 </div>
-                 <NavItem
-                    icon={<DocumentChartBarIcon className="w-6 h-6" />}
-                    label="Relatórios"
-                    isActive={currentView === 'reports'}
-                    onClick={() => setCurrentView('reports')}
-                />
-                 <NavItem
-                    icon={<Cog6ToothIcon className="w-6 h-6" />}
-                    label="Configurações"
-                    isActive={currentView === 'settings'}
-                    onClick={() => setCurrentView('settings')}
-                />
+                <div className="hidden md:block mt-auto">
+                     <button
+                        onClick={actions.logout}
+                        className='flex items-center justify-center space-x-3 w-full px-4 py-3 text-sm rounded-lg transition-colors text-gray-400 hover:bg-red-800/50 hover:text-white'
+                    >
+                        <LogoutIcon className="w-6 h-6" />
+                        <span>Sair</span>
+                    </button>
+                </div>
             </nav>
             <main className="flex-1 bg-gray-900 overflow-y-auto">
                 {renderView()}
@@ -156,11 +125,24 @@ const AppLayout: React.FC = () => {
     );
 };
 
+const AppContent: React.FC = () => {
+    const { state } = useContext(AppContext);
+
+    if (state.status === 'idle' || state.status === 'loading') {
+        return (
+            <div className="flex justify-center items-center h-screen bg-gray-900">
+                <p className="text-white text-lg">Carregando...</p>
+            </div>
+        );
+    }
+    
+    return state.isAuthenticated ? <AppLayout /> : <LoginScreen />;
+}
 
 const App: React.FC = () => {
     return (
         <AppProvider>
-            <AppLayout />
+            <AppContent />
         </AppProvider>
     );
 }

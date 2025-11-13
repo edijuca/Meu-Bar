@@ -1,4 +1,3 @@
-
 import React, { useState, useContext, useMemo } from 'react';
 import { AppContext } from '../context/AppContext';
 import { Product } from '../types';
@@ -6,7 +5,7 @@ import Modal from './common/Modal';
 import { PlusIcon, PencilIcon, TrashIcon } from './icons';
 import { LOW_STOCK_THRESHOLD } from '../constants';
 
-const ProductForm: React.FC<{ product?: Product; onSave: (product: Product) => void; onCancel: () => void }> = ({ product, onSave, onCancel }) => {
+const ProductForm: React.FC<{ product?: Product; onSave: (product: Omit<Product, 'id'>) => void; onCancel: () => void }> = ({ product, onSave, onCancel }) => {
     const [name, setName] = useState(product?.name || '');
     const [category, setCategory] = useState(product?.category || '');
     const [price, setPrice] = useState(product?.price.toString() || '');
@@ -16,7 +15,6 @@ const ProductForm: React.FC<{ product?: Product; onSave: (product: Product) => v
         e.preventDefault();
         if (!name.trim() || !price || !stock) return;
         onSave({
-            id: product?.id || `p${Date.now()}`,
             name,
             category,
             price: parseFloat(price),
@@ -51,7 +49,7 @@ const ProductForm: React.FC<{ product?: Product; onSave: (product: Product) => v
 };
 
 const Products: React.FC = () => {
-    const { state, dispatch } = useContext(AppContext);
+    const { state, actions } = useContext(AppContext);
     const { products } = state;
 
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -68,11 +66,11 @@ const Products: React.FC = () => {
         ), [products, searchTerm, categoryFilter]
     );
 
-    const handleSaveProduct = (product: Product) => {
+    const handleSaveProduct = async (productData: Omit<Product, 'id'>) => {
         if (editingProduct) {
-            dispatch({ type: 'UPDATE_PRODUCT', payload: product });
+            await actions.updateProduct({ ...productData, id: editingProduct.id });
         } else {
-            dispatch({ type: 'ADD_PRODUCT', payload: product });
+            await actions.addProduct(productData);
         }
         setIsModalOpen(false);
         setEditingProduct(undefined);
@@ -83,9 +81,9 @@ const Products: React.FC = () => {
         setIsModalOpen(true);
     };
 
-    const handleDelete = (id: string) => {
+    const handleDelete = async (id: string) => {
         if (window.confirm('Tem certeza que deseja excluir este produto?')) {
-            dispatch({ type: 'DELETE_PRODUCT', payload: id });
+            await actions.deleteProduct(id);
         }
     };
 

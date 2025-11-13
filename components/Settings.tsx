@@ -1,19 +1,23 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { AppContext } from '../context/AppContext';
 import { BarInfo } from '../types';
 
 const Settings: React.FC = () => {
-    const { state, dispatch } = useContext(AppContext);
+    const { state, actions } = useContext(AppContext);
     const [barInfo, setBarInfo] = useState<BarInfo>(state.barInfo);
     const [showSuccess, setShowSuccess] = useState(false);
+
+    useEffect(() => {
+        setBarInfo(state.barInfo);
+    }, [state.barInfo]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         setBarInfo({ ...barInfo, [e.target.name]: e.target.value });
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        dispatch({ type: 'UPDATE_BAR_INFO', payload: barInfo });
+        await actions.updateBarInfo(barInfo);
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 3000); // Hide message after 3 seconds
     };

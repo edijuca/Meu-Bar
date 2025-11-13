@@ -5,18 +5,14 @@ import { PaymentStatus } from '../constants';
 import Modal from './common/Modal';
 import { PlusIcon, PencilIcon, TrashIcon, BanknotesIcon } from './icons';
 
-const CustomerForm: React.FC<{ customer?: Customer; onSave: (customer: Customer) => void; onCancel: () => void }> = ({ customer, onSave, onCancel }) => {
+const CustomerForm: React.FC<{ customer?: Customer; onSave: (customer: Omit<Customer, 'id'>) => void; onCancel: () => void }> = ({ customer, onSave, onCancel }) => {
     const [name, setName] = useState(customer?.name || '');
     const [phone, setPhone] = useState(customer?.phone || '');
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!name.trim()) return;
-        onSave({
-            id: customer?.id || `c${Date.now()}`,
-            name,
-            phone,
-        });
+        onSave({ name, phone });
     };
 
     return (
@@ -93,7 +89,7 @@ const CustomerDetailsModal: React.FC<{ customer: Customer; sales: Sale[]; onClos
 
 
 const Customers: React.FC = () => {
-    const { state, dispatch } = useContext(AppContext);
+    const { state, actions } = useContext(AppContext);
     const { customers, sales } = state;
 
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -106,8 +102,7 @@ const Customers: React.FC = () => {
         sales.forEach(sale => {
             if (sale.paymentStatus === PaymentStatus.Fiado) {
                 const currentDebt = debts.get(sale.customerId) || 0;
-                // FIX: `sale.total` might not be a number if loaded from localStorage.
-                // Explicitly cast to Number to ensure correct arithmetic.
+                // FIX: Ensure both operands are treated as numbers to avoid type errors.
                 debts.set(sale.customerId, currentDebt + Number(sale.total));
             }
         });
@@ -124,11 +119,11 @@ const Customers: React.FC = () => {
         ), [customers, searchTerm]
     );
 
-    const handleSaveCustomer = (customer: Customer) => {
+    const handleSaveCustomer = async (customerData: Omit<Customer, 'id'>) => {
         if (editingCustomer) {
-            dispatch({ type: 'UPDATE_CUSTOMER', payload: customer });
+            await actions.updateCustomer({ ...customerData, id: editingCustomer.id });
         } else {
-            dispatch({ type: 'ADD_CUSTOMER', payload: customer });
+            await actions.addCustomer(customerData);
         }
         setIsModalOpen(false);
         setEditingCustomer(undefined);
@@ -139,14 +134,14 @@ const Customers: React.FC = () => {
         setIsModalOpen(true);
     };
 
-    const handleDelete = (id: string) => {
+    const handleDelete = async (id: string) => {
         if (window.confirm('Tem certeza que deseja excluir este cliente? Todas as suas vendas também serão removidas.')) {
-            dispatch({ type: 'DELETE_CUSTOMER', payload: id });
+            await actions.deleteCustomer(id);
         }
     };
     
-    const handlePayDebt = (customerId: string, amount: number) => {
-        dispatch({ type: 'PAY_DEBT', payload: { customerId, amount } });
+    const handlePayDebt = async (customerId: string, amount: number) => {
+        await actions.payDebt(customerId, amount);
         setSelectedCustomer(null); // Close modal after payment
     };
 
