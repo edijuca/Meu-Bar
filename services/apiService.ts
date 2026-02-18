@@ -1,107 +1,153 @@
 import { User, Customer, Product, Sale, HeldOrder, BarInfo } from '../types';
 import { PaymentMethod, PaymentStatus } from '../constants';
 
-type AppData = Omit<any, 'isAuthenticated' | 'user' | 'status'>; // Usando 'any' temporariamente para simplificar
+const API_URL = '/api';
 
+type AppData = {
+    customers: Customer[];
+    products: Product[];
+    sales: Sale[];
+    heldOrders: HeldOrder[];
+    barInfo: BarInfo;
+};
+
+// Mock data is no longer needed but kept for type reference if needed, 
+// though we will remove it from usage.
 export const MOCK_INITIAL_DATA: AppData = {
-    customers: [
-      { id: 'c1', name: 'João Silva', phone: '11987654321' },
-      { id: 'c2', name: 'Maria Oliveira', phone: '21912345678' },
-    ],
-    products: [
-      { id: 'p1', name: 'Cerveja Brahma 600ml', category: 'Cervejas', price: 12.00, stock: 50 },
-      { id: 'p2', name: 'Caipirinha de Limão', category: 'Drinks', price: 15.00, stock: 100 },
-      { id: 'p3', name: 'Porção de Fritas', category: 'Porções', price: 25.00, stock: 30 },
-      { id: 'p4', name: 'Coca-Cola Lata', category: 'Refrigerantes', price: 6.00, stock: 80 },
-    ],
-    sales: [
-        {
-          id: 's1',
-          customerId: 'c1',
-          items: [{ productId: 'p1', quantity: 2, subtotal: 24.00 }],
-          date: new Date(Date.now() - 86400000).toISOString(), // Yesterday
-          total: 24.00,
-          paymentMethod: PaymentMethod.Fiado,
-          paymentStatus: PaymentStatus.Fiado,
-        },
-    ],
+    customers: [],
+    products: [],
+    sales: [],
     heldOrders: [],
     barInfo: {
-        name: 'Meu Bar Incrível',
-        email: 'contato@meubar.com',
-        phone: '(11) 99999-8888',
-        address: 'Rua das Cervejas, 123 - Bairro Boêmio',
+        name: '',
+        email: '',
+        phone: '',
+        address: '',
     },
 };
 
-
-// --- API Service Simulation ---
-
-const FAKE_LATENCY = 300;
-
-const simulateApi = <T>(data: T, errorMsg?: string): Promise<T> => {
-    return new Promise((resolve, reject) => {
-        setTimeout(() => {
-            if (errorMsg) {
-                reject(new Error(errorMsg));
-            } else {
-                resolve(data);
-            }
-        }, FAKE_LATENCY);
-    });
-};
-
 class ApiService {
-    private getUsers(): User[] {
-        const users = localStorage.getItem('bar_users');
-        return users ? JSON.parse(users) : [];
-    }
-
-    private saveUsers(users: User[]) {
-        localStorage.setItem('bar_users', JSON.stringify(users));
+    private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
+        const response = await fetch(`${API_URL}${endpoint}`, {
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            ...options,
+        });
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || `Error ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
     }
 
     async register(name: string, email: string, password: string): Promise<User> {
-        const users = this.getUsers();
-        if (users.some(u => u.email === email)) {
-            return simulateApi(null as any, 'Este email já está em uso.');
-        }
-        const newUser: User = { id: `u${Date.now()}`, name, email, password };
-        this.saveUsers([...users, newUser]);
-        
-        localStorage.setItem('bar_session', JSON.stringify(newUser));
-        return simulateApi(newUser);
+        return this.request<User>('/auth/register', {
+            method: 'POST',
+            body: JSON.stringify({ name, email, password }),
+        });
     }
-    
+
     async login(email: string, password: string): Promise<User> {
-        const users = this.getUsers();
-        const user = users.find(u => u.email === email);
-        if (!user || user.password !== password) {
-            return simulateApi(null as any, 'Email ou senha inválidos.');
-        }
+        const user = await this.request<User>('/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ email, password }),
+        });
         localStorage.setItem('bar_session', JSON.stringify(user));
-        return simulateApi(user);
+        return user;
     }
-    
+
     async logout(): Promise<void> {
         localStorage.removeItem('bar_session');
-        return simulateApi(undefined);
+        // Optional: Call logout endpoint if backend manages sessions
     }
-    
+
     async checkSession(): Promise<User | null> {
         const session = localStorage.getItem('bar_session');
-        const user = session ? JSON.parse(session) : null;
-        return simulateApi(user);
+        return session ? JSON.parse(session) : null;
     }
 
+    // Consolidated data fetch for initialization
     async getData(userEmail: string): Promise<AppData | null> {
-        const data = localStorage.getItem(`bar_data_${userEmail}`);
-        return simulateApi(data ? JSON.parse(data) : null);
+        // userEmail is mostly unused in current backend design as we don't hold per-user data isolation yet,
+        // but keeping signature for compatibility.
+        return this.request<AppData>('/data');
     }
+
+    // --- Granular Data Operations ---
 
     async saveData(userEmail: string, data: AppData): Promise<void> {
-        localStorage.setItem(`bar_data_${userEmail}`, JSON.stringify(data));
-        return simulateApi(undefined);
+        // This method is deprecated with the new backend architecture.
+        // We should move away from it. For now, it does nothing or logs a warning.
+        console.warn('apiService.saveData is deprecated. Use granular methods instead.');
+    }
+
+    async addCustomer(customer: Omit<Customer, 'id'>): Promise<Customer> {
+        return this.request<Customer>('/customers', {
+            method: 'POST',
+            body: JSON.stringify(customer),
+        });
+    }
+
+    async updateCustomer(customer: Customer): Promise<Customer> {
+        return this.request<Customer>(`/customers/${customer.id}`, {
+            method: 'PUT',
+            body: JSON.stringify(customer),
+        });
+    }
+
+    async deleteCustomer(id: string): Promise<void> {
+        await this.request(`/customers/${id}`, { method: 'DELETE' });
+    }
+
+    async addProduct(product: Omit<Product, 'id'>): Promise<Product> {
+        return this.request<Product>('/products', {
+            method: 'POST',
+            body: JSON.stringify(product),
+        });
+    }
+
+    async updateProduct(product: Product): Promise<Product> {
+        return this.request<Product>(`/products/${product.id}`, {
+            method: 'PUT',
+            body: JSON.stringify(product),
+        });
+    }
+
+    async deleteProduct(id: string): Promise<void> {
+        await this.request(`/products/${id}`, { method: 'DELETE' });
+    }
+
+    async addSale(sale: Omit<Sale, 'id' | 'date' | 'paymentStatus'>): Promise<Sale> {
+        return this.request<Sale>('/sales', {
+            method: 'POST',
+            body: JSON.stringify(sale),
+        });
+    }
+
+    async payDebt(saleIds: string[]): Promise<void> {
+        await this.request('/sales/pay-debt', {
+            method: 'POST',
+            body: JSON.stringify({ saleIds }),
+        });
+    }
+
+    async holdOrder(order: Omit<HeldOrder, 'id' | 'heldAt'>): Promise<HeldOrder> {
+        return this.request<HeldOrder>('/held-orders', {
+            method: 'POST',
+            body: JSON.stringify(order),
+        });
+    }
+
+    async deleteHeldOrder(id: string): Promise<void> {
+        await this.request(`/held-orders/${id}`, { method: 'DELETE' });
+    }
+
+    async updateBarInfo(info: BarInfo): Promise<BarInfo> {
+        return this.request<BarInfo>('/bar-info', {
+            method: 'PUT',
+            body: JSON.stringify(info),
+        });
     }
 }
 
