@@ -145,8 +145,31 @@ const Customers: React.FC = () => {
     };
     
     const handlePayDebt = async (customerId: string, amount: number) => {
-        await actions.payDebt(customerId, amount);
-        setSelectedCustomer(null); // Close modal after payment
+        const unpaidSales = sales.filter(s => s.customerId === customerId && s.paymentStatus === PaymentStatus.Fiado);
+        
+        // Consolidate all items from unpaid sales
+        const consolidatedItemsMap = new Map<string, { productId: string, quantity: number, subtotal: number }>();
+        
+        unpaidSales.forEach(sale => {
+            sale.items.forEach(item => {
+                const existing = consolidatedItemsMap.get(item.productId);
+                if (existing) {
+                    existing.quantity += item.quantity;
+                    existing.subtotal += item.subtotal;
+                } else {
+                    consolidatedItemsMap.set(item.productId, { ...item });
+                }
+            });
+        });
+        
+        const allItems = Array.from(consolidatedItemsMap.values());
+        const unpaidSaleIds = unpaidSales.map(s => s.id);
+        
+        // Set active sale in context and switch to sales view
+        actions.setActiveSale(customerId, allItems, unpaidSaleIds);
+        actions.setView('sales');
+        
+        setSelectedCustomer(null);
     };
 
 

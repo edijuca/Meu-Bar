@@ -7,6 +7,8 @@ const Settings: React.FC = () => {
     const [barInfo, setBarInfo] = useState<BarInfo>(state.barInfo);
     const [showSuccess, setShowSuccess] = useState(false);
 
+    const [isResetting, setIsResetting] = useState(false);
+
     useEffect(() => {
         setBarInfo(state.barInfo);
     }, [state.barInfo]);
@@ -22,6 +24,27 @@ const Settings: React.FC = () => {
         setTimeout(() => setShowSuccess(false), 3000); // Hide message after 3 seconds
     };
 
+    const handleResetSales = async () => {
+        console.log('Settings: handleResetSales clicked');
+        if (window.confirm('Tem certeza que deseja APAGAR TODAS as vendas? Esta ação não pode ser desfeita.')) {
+            console.log('Settings: Reset confirmed by user');
+            setIsResetting(true);
+            try {
+                await actions.resetSales();
+                console.log('Settings: Reset action successful');
+                alert('Todas as vendas foram removidas com sucesso. O sistema será reiniciado.');
+                window.location.reload();
+            } catch (err: any) {
+                console.error('Settings: Reset sales error:', err);
+                alert('Erro ao resetar vendas: ' + (err.message || 'Erro desconhecido'));
+            } finally {
+                setIsResetting(false);
+            }
+        } else {
+            console.log('Settings: Reset cancelled by user');
+        }
+    };
+
     return (
         <div className="p-4 md:p-6">
             <h1 className="text-3xl font-bold text-white mb-6">Configurações do Bar</h1>
@@ -33,7 +56,7 @@ const Settings: React.FC = () => {
                             type="text"
                             id="name"
                             name="name"
-                            value={barInfo.name}
+                            value={barInfo.name || ''}
                             onChange={handleChange}
                             required
                             className="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
@@ -45,7 +68,7 @@ const Settings: React.FC = () => {
                             type="email"
                             id="email"
                             name="email"
-                            value={barInfo.email}
+                            value={barInfo.email || ''}
                             onChange={handleChange}
                             required
                             className="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
@@ -57,7 +80,7 @@ const Settings: React.FC = () => {
                             type="tel"
                             id="phone"
                             name="phone"
-                            value={barInfo.phone}
+                            value={barInfo.phone || ''}
                             onChange={handleChange}
                             className="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                         />
@@ -67,7 +90,7 @@ const Settings: React.FC = () => {
                         <textarea
                             id="address"
                             name="address"
-                            value={barInfo.address}
+                            value={barInfo.address || ''}
                             onChange={handleChange}
                             rows={3}
                             className="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
@@ -80,6 +103,20 @@ const Settings: React.FC = () => {
                         </button>
                     </div>
                 </form>
+
+                <div className="mt-12 pt-8 border-t border-gray-700">
+                    <h3 className="text-xl font-bold text-red-400 mb-4">Zona de Perigo</h3>
+                    <p className="text-gray-400 text-sm mb-6">
+                        As ações abaixo são irreversíveis. Tenha cuidado ao prosseguir.
+                    </p>
+                    <button 
+                        onClick={handleResetSales}
+                        disabled={isResetting}
+                        className={`bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md transition-colors ${isResetting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                        {isResetting ? 'Resetando...' : 'Resetar Todas as Vendas'}
+                    </button>
+                </div>
             </div>
         </div>
     );

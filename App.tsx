@@ -66,8 +66,8 @@ const NavItem: React.FC<{ icon: React.ReactNode; label: string; isActive: boolea
 );
 
 const AppLayout: React.FC = () => {
-    const [currentView, setCurrentView] = useState<View>('dashboard');
     const { state, actions } = useContext(AppContext);
+    const { currentView } = state;
 
     const lowStockProducts = useMemo(
         () => state.products.filter(p => p.stock <= LOW_STOCK_THRESHOLD),
@@ -97,21 +97,21 @@ const AppLayout: React.FC = () => {
                     <h1 className="text-2xl font-bold text-white text-center">{state.barInfo.name || 'Bar POS'}</h1>
                 </div>
                 <div className="flex-grow flex md:flex-col justify-around md:justify-start md:space-y-2">
-                    <NavItem icon={<ChartBarIcon className="w-6 h-6" />} label="Dashboard" isActive={currentView === 'dashboard'} onClick={() => setCurrentView('dashboard')}/>
-                    <NavItem icon={<ShoppingCartIcon className="w-6 h-6" />} label="Atendimento" isActive={currentView === 'sales'} onClick={() => setCurrentView('sales')}/>
-                    <NavItem icon={<BanknotesIcon className="w-6 h-6" />} label="Vendas" isActive={currentView === 'sales_history'} onClick={() => setCurrentView('sales_history')}/>
-                    <NavItem icon={<UsersIcon className="w-6 h-6" />} label="Clientes" isActive={currentView === 'customers'} onClick={() => setCurrentView('customers')}/>
-                    <NavItem icon={<UsersIcon className="w-6 h-6" />} label="Usuários" isActive={currentView === 'users'} onClick={() => setCurrentView('users')}/>
+                    <NavItem icon={<ChartBarIcon className="w-6 h-6" />} label="Dashboard" isActive={currentView === 'dashboard'} onClick={() => actions.setView('dashboard')}/>
+                    <NavItem icon={<ShoppingCartIcon className="w-6 h-6" />} label="Atendimento" isActive={currentView === 'sales'} onClick={() => actions.setView('sales')}/>
+                    <NavItem icon={<BanknotesIcon className="w-6 h-6" />} label="Vendas" isActive={currentView === 'sales_history'} onClick={() => actions.setView('sales_history')}/>
+                    <NavItem icon={<UsersIcon className="w-6 h-6" />} label="Clientes" isActive={currentView === 'customers'} onClick={() => actions.setView('customers')}/>
+                    <NavItem icon={<UsersIcon className="w-6 h-6" />} label="Usuários" isActive={currentView === 'users'} onClick={() => actions.setView('users')}/>
                     <div className="relative w-full">
-                        <NavItem icon={<CubeIcon className="w-6 h-6" />} label="Produtos" isActive={currentView === 'products'} onClick={() => setCurrentView('products')}/>
+                        <NavItem icon={<CubeIcon className="w-6 h-6" />} label="Produtos" isActive={currentView === 'products'} onClick={() => actions.setView('products')}/>
                         {lowStockCount > 0 && (
                             <span className="absolute top-1 right-1 md:top-2 md:right-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white shadow-md" aria-label={`${lowStockCount} products with low stock`}>
                                 {lowStockCount}
                             </span>
                         )}
                     </div>
-                     <NavItem icon={<DocumentChartBarIcon className="w-6 h-6" />} label="Relatórios" isActive={currentView === 'reports'} onClick={() => setCurrentView('reports')}/>
-                     <NavItem icon={<Cog6ToothIcon className="w-6 h-6" />} label="Configurações" isActive={currentView === 'settings'} onClick={() => setCurrentView('settings')}/>
+                     <NavItem icon={<DocumentChartBarIcon className="w-6 h-6" />} label="Relatórios" isActive={currentView === 'reports'} onClick={() => actions.setView('reports')}/>
+                     <NavItem icon={<Cog6ToothIcon className="w-6 h-6" />} label="Configurações" isActive={currentView === 'settings'} onClick={() => actions.setView('settings')}/>
                 </div>
                 <div className="hidden md:block mt-auto">
                      <button

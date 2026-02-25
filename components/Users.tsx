@@ -30,8 +30,8 @@ const Users: React.FC = () => {
         if (user) {
             setEditingUser(user);
             setFormData({
-                name: user.name,
-                email: user.email,
+                name: user.name || '',
+                email: user.email || '',
                 password: user.password || '',
             });
         } else {

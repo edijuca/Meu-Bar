@@ -1,4 +1,4 @@
-import { User, Customer, Product, Sale, HeldOrder, BarInfo } from '../types';
+import { User, Customer, Product, Sale, HeldOrder, BarInfo, SaleItem } from '../types';
 import { PaymentMethod, PaymentStatus } from '../constants';
 import { supabase } from './supabaseClient';
 
@@ -121,7 +121,12 @@ class ApiService {
                 heldAt: o.held_at,
                 items: (o.held_order_items || []).map((i: any) => ({ productId: i.product_id, quantity: i.quantity, subtotal: Number(i.subtotal) }))
             })),
-            barInfo: barInfo ? { name: barInfo.name, email: barInfo.email, phone: barInfo.phone, address: barInfo.address } : MOCK_INITIAL_DATA.barInfo
+            barInfo: barInfo ? { 
+                name: barInfo.name || '', 
+                email: barInfo.email || '', 
+                phone: barInfo.phone || '', 
+                address: barInfo.address || '' 
+            } : MOCK_INITIAL_DATA.barInfo
         };
     }
 
@@ -216,6 +221,75 @@ class ApiService {
     async payDebt(saleIds: string[]): Promise<void> {
         const { error } = await supabase.from('sales').update({ payment_status: PaymentStatus.Pago }).in('id', saleIds);
         if (error) throw error;
+    }
+
+    async deleteSale(id: string, items: SaleItem[]): Promise<void> {
+        // Increment stock back
+        for (const item of items) {
+            await supabase.rpc('decrement_stock', { x: -item.quantity, row_id: item.productId });
+        }
+        const { error } = await supabase.from('sales').delete().eq('id', id);
+        if (error) throw error;
+    }
+
+    async resetSales(): Promise<void> {
+        console.log('ApiService: resetSales started');
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            console.error('ApiService: No user found for resetSales');
+            throw new Error('Você precisa estar logado para resetar as vendas.');
+        }
+        
+        try {
+            // 1. Get all sale IDs first
+            console.log('ApiService: Fetching sale IDs for user', user.id);
+            const { data: sales, error: fetchSalesError } = await supabase
+                .from('sales')
+                .select('id')
+                .eq('user_id', user.id);
+            
+            if (fetchSalesError) throw fetchSalesError;
+
+            if (sales && sales.length > 0) {
+                const saleIds = sales.map(s => s.id);
+                console.log(`ApiService: Deleting ${saleIds.length} sales`);
+                const { error: deleteSalesError } = await supabase
+                    .from('sales')
+                    .delete()
+                    .in('id', saleIds);
+                
+                if (deleteSalesError) throw deleteSalesError;
+            } else {
+                console.log('ApiService: No sales found to delete');
+            }
+
+            // 2. Get all held order IDs
+            console.log('ApiService: Fetching held order IDs for user', user.id);
+            const { data: heldOrders, error: fetchHeldError } = await supabase
+                .from('held_orders')
+                .select('id')
+                .eq('user_id', user.id);
+            
+            if (fetchHeldError) throw fetchHeldError;
+
+            if (heldOrders && heldOrders.length > 0) {
+                const heldIds = heldOrders.map(h => h.id);
+                console.log(`ApiService: Deleting ${heldIds.length} held orders`);
+                const { error: deleteHeldError } = await supabase
+                    .from('held_orders')
+                    .delete()
+                    .in('id', heldIds);
+                
+                if (deleteHeldError) throw deleteHeldError;
+            } else {
+                console.log('ApiService: No held orders found to delete');
+            }
+
+            console.log('ApiService: resetSales completed successfully');
+        } catch (error) {
+            console.error('ApiService: Critical error in resetSales:', error);
+            throw error;
+        }
     }
 
     async holdOrder(order: Omit<HeldOrder, 'id' | 'heldAt'>): Promise<HeldOrder> {

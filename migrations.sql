@@ -72,7 +72,9 @@ CREATE TABLE held_orders (
   user_id UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL,
   customer_id UUID REFERENCES customers ON DELETE SET NULL,
   total DECIMAL(10,2) NOT NULL DEFAULT 0,
-  held_at TIMESTAMPTZ DEFAULT now()
+  held_at TIMESTAMPTZ DEFAULT now(),
+  clearing_sale_ids UUID[] DEFAULT '{}',
+  initial_items JSONB DEFAULT '[]'
 );
 
 ALTER TABLE held_orders ENABLE ROW LEVEL SECURITY;

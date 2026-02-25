@@ -1,5 +1,5 @@
 import React, { createContext, useReducer, useEffect, ReactNode, useMemo } from 'react';
-import { Customer, Product, Sale, HeldOrder, BarInfo, User } from '../types';
+import { Customer, Product, Sale, HeldOrder, BarInfo, User, SaleItem } from '../types';
 import { PaymentMethod, PaymentStatus } from '../constants';
 import { apiService, MOCK_INITIAL_DATA } from '../services/apiService';
 
@@ -15,11 +15,17 @@ interface AppState {
   heldOrders: HeldOrder[];
   barInfo: BarInfo;
   users: User[];
+  currentView: 'dashboard' | 'sales' | 'customers' | 'products' | 'reports' | 'settings' | 'sales_history' | 'users';
+  activeSale: {
+    customerId: string | null;
+    items: SaleItem[];
+    clearingSaleIds: string[];
+  };
 }
 
 type Action =
-  | { type: 'INITIALIZE'; payload: { user: User; data: Omit<AppState, 'isAuthenticated' | 'user' | 'status' | 'users'>; users: User[] } }
-  | { type: 'LOGIN'; payload: { user: User; data: Omit<AppState, 'isAuthenticated' | 'user' | 'status' | 'users'>; users: User[] } }
+  | { type: 'INITIALIZE'; payload: { user: User; data: Omit<AppState, 'isAuthenticated' | 'user' | 'status' | 'users' | 'currentView' | 'activeSale'>; users: User[] } }
+  | { type: 'LOGIN'; payload: { user: User; data: Omit<AppState, 'isAuthenticated' | 'user' | 'status' | 'users' | 'currentView' | 'activeSale'>; users: User[] } }
   | { type: 'LOGOUT' }
   | { type: 'SET_STATE'; payload: Omit<AppState, 'isAuthenticated' | 'user' | 'status'> }
   | { type: 'ADD_CUSTOMER'; payload: Customer }
@@ -35,7 +41,10 @@ type Action =
   | { type: 'UPDATE_BAR_INFO', payload: BarInfo }
   | { type: 'SET_USERS', payload: User[] }
   | { type: 'UPDATE_USER', payload: User }
-  | { type: 'DELETE_USER', payload: string };
+  | { type: 'DELETE_USER', payload: string }
+  | { type: 'SET_VIEW', payload: AppState['currentView'] }
+  | { type: 'SET_ACTIVE_SALE', payload: AppState['activeSale'] }
+  | { type: 'RESET_SALES' };
 
 // --- Initial State ---
 
@@ -49,6 +58,12 @@ const initialState: AppState = {
   heldOrders: [],
   barInfo: { name: '', email: '', phone: '', address: '' },
   users: [],
+  currentView: 'dashboard',
+  activeSale: {
+    customerId: null,
+    items: [],
+    clearingSaleIds: [],
+  },
 };
 
 // --- Reducer ---
@@ -101,6 +116,12 @@ const appReducer = (state: AppState, action: Action): AppState => {
       return { ...state, users: state.users.map(u => u.id === action.payload.id ? action.payload : u) };
     case 'DELETE_USER':
       return { ...state, users: state.users.filter(u => u.id !== action.payload) };
+    case 'SET_VIEW':
+      return { ...state, currentView: action.payload };
+    case 'SET_ACTIVE_SALE':
+      return { ...state, activeSale: action.payload };
+    case 'RESET_SALES':
+      return { ...state, sales: [], heldOrders: [] };
     default:
       return state;
   }
@@ -128,6 +149,10 @@ interface AppContextType {
     updateUser: (user: User) => Promise<void>;
     deleteUser: (id: string) => Promise<void>;
     addUser: (name: string, email: string, password: string) => Promise<void>;
+    setView: (view: AppState['currentView']) => void;
+    setActiveSale: (customerId: string | null, items: SaleItem[], clearingSaleIds: string[]) => void;
+    clearSpecificSales: (saleIds: string[]) => Promise<void>;
+    resetSales: () => Promise<void>;
   };
 }
 
@@ -146,7 +171,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const sessionUser = await apiService.checkSession();
       if (sessionUser) {
         const data = await apiService.getData(sessionUser.email);
-        const users = apiService.getUsersList();
+        const users = await apiService.getUsersList();
         dispatch({ type: 'INITIALIZE', payload: { user: sessionUser, data: data || MOCK_INITIAL_DATA, users } });
       } else {
         // No session, just mark as ready to show login screen
@@ -254,6 +279,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const newUser = await apiService.addUser(name, email, password);
         const users = await apiService.getUsersList();
         dispatch({ type: 'SET_USERS', payload: users });
+      },
+      setView: (view: AppState['currentView']) => {
+        dispatch({ type: 'SET_VIEW', payload: view });
+      },
+      setActiveSale: (customerId: string | null, items: SaleItem[], clearingSaleIds: string[]) => {
+        dispatch({ type: 'SET_ACTIVE_SALE', payload: { customerId, items, clearingSaleIds } });
+      },
+      clearSpecificSales: async (saleIds: string[]) => {
+        if (saleIds.length === 0) return;
+        await apiService.payDebt(saleIds);
+        const updatedSales = state.sales.map(s => 
+          saleIds.includes(s.id) ? { ...s, paymentStatus: PaymentStatus.Pago } : s
+        );
+        dispatch({ type: 'PAY_DEBT', payload: updatedSales });
+      },
+      resetSales: async () => {
+        console.log('AppContext: resetSales action triggered');
+        try {
+          await apiService.resetSales();
+          dispatch({ type: 'RESET_SALES' });
+          console.log('AppContext: resetSales action completed');
+        } catch (err) {
+          console.error('AppContext: resetSales action failed', err);
+          throw err;
+        }
       },
     };
   }, [state]);

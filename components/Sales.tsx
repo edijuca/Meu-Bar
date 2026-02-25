@@ -8,7 +8,7 @@ import { CreditCardIcon, PauseIcon, TrashIcon, BanknotesIcon } from './icons';
 
 const Sales: React.FC = () => {
     const { state, actions } = useContext(AppContext);
-    const { customers, products, heldOrders } = state;
+    const { customers, products, heldOrders, activeSale } = state;
 
     const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
     const [currentSaleItems, setCurrentSaleItems] = useState<SaleItem[]>([]);
@@ -16,6 +16,20 @@ const Sales: React.FC = () => {
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.Dinheiro);
     const [amountReceived, setAmountReceived] = useState<string>('');
     const [searchTerm, setSearchTerm] = useState('');
+    const [clearingSaleIds, setClearingSaleIds] = useState<string[]>([]);
+    const [initialItems, setInitialItems] = useState<SaleItem[]>([]);
+
+    // Load active sale from context if available
+    React.useEffect(() => {
+        if (activeSale.customerId) {
+            setSelectedCustomerId(activeSale.customerId);
+            setCurrentSaleItems(activeSale.items);
+            setClearingSaleIds(activeSale.clearingSaleIds);
+            setInitialItems(activeSale.items);
+            // Clear it from context so it doesn't re-load on every render
+            actions.setActiveSale(null, [], []);
+        }
+    }, [activeSale, actions]);
 
     const availableProducts = useMemo(() =>
         products.filter(p => p.stock > 0),
@@ -30,6 +44,31 @@ const Sales: React.FC = () => {
     const saleTotal = useMemo(() =>
         currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0),
         [currentSaleItems]
+    );
+
+    // Calculate how much of the current total is actually NEW items
+    const newItemsOnly = useMemo(() => {
+        const items: SaleItem[] = [];
+        currentSaleItems.forEach(current => {
+            const initial = initialItems.find(i => i.productId === current.productId);
+            const initialQty = initial?.quantity || 0;
+            const newQty = current.quantity - initialQty;
+            
+            if (newQty > 0) {
+                const product = products.find(p => p.id === current.productId);
+                items.push({
+                    productId: current.productId,
+                    quantity: newQty,
+                    subtotal: newQty * (product?.price || 0)
+                });
+            }
+        });
+        return items;
+    }, [currentSaleItems, initialItems, products]);
+
+    const newItemsTotal = useMemo(() => 
+        newItemsOnly.reduce((sum, item) => sum + item.subtotal, 0),
+        [newItemsOnly]
     );
     
     const changeAmount = useMemo(() => {
@@ -68,11 +107,20 @@ const Sales: React.FC = () => {
     };
 
     const handleUpdateQuantity = (productId: string, newQuantity: number) => {
+        // Don't allow reducing quantity below initial debt quantity
+        const initial = initialItems.find(i => i.productId === productId);
+        const minQty = initial?.quantity || 0;
+        
+        if (newQuantity < minQty && clearingSaleIds.length > 0) {
+            alert('Não é possível reduzir a quantidade de um item que já faz parte da dívida anterior.');
+            return;
+        }
+
         const product = products.find(p => p.id === productId);
         if (!product) return;
         
         const productInStock = products.find(p => p.id === product.id);
-        if (!productInStock || productInStock.stock < newQuantity) {
+        if (!productInStock || productInStock.stock < (newQuantity - minQty)) {
             alert('Produto sem estoque suficiente.');
             return;
         }
@@ -91,19 +139,34 @@ const Sales: React.FC = () => {
     const handleFinalizeSale = async () => {
         if (!selectedCustomerId || currentSaleItems.length === 0 || !isAmountSufficient) return;
 
-        const newSaleData = {
-            customerId: selectedCustomerId,
-            items: currentSaleItems,
-            total: saleTotal,
-            paymentMethod: paymentMethod,
-        };
-        await actions.addSale(newSaleData);
-        resetSale();
+        try {
+            // 1. If clearing debt, mark old sales as PAID
+            if (clearingSaleIds.length > 0) {
+                await actions.clearSpecificSales(clearingSaleIds);
+            }
+
+            // 2. If there are NEW items, create a new sale for them
+            if (newItemsOnly.length > 0) {
+                const newSaleData = {
+                    customerId: selectedCustomerId,
+                    items: newItemsOnly,
+                    total: newItemsTotal,
+                    paymentMethod: paymentMethod,
+                };
+                await actions.addSale(newSaleData);
+            }
+            
+            resetSale();
+        } catch (error: any) {
+            alert('Erro ao finalizar venda: ' + error.message);
+        }
     };
 
     const resetSale = () => {
         setSelectedCustomerId(null);
         setCurrentSaleItems([]);
+        setInitialItems([]);
+        setClearingSaleIds([]);
         setIsFinalizeModalOpen(false);
         setPaymentMethod(PaymentMethod.Dinheiro);
         setAmountReceived('');
