@@ -127,6 +127,7 @@ interface AppContextType {
     updateBarInfo: (info: BarInfo) => Promise<void>;
     updateUser: (user: User) => Promise<void>;
     deleteUser: (id: string) => Promise<void>;
+    addUser: (name: string, email: string, password: string) => Promise<void>;
   };
 }
 
@@ -156,32 +157,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, []);
 
   const actions = useMemo(() => {
-    const saveData = async (newState: Partial<AppState>) => {
-        if (state.user) {
-            const currentData = {
-                customers: newState.customers ?? state.customers,
-                products: newState.products ?? state.products,
-                sales: newState.sales ?? state.sales,
-                heldOrders: newState.heldOrders ?? state.heldOrders,
-                barInfo: newState.barInfo ?? state.barInfo,
-            };
-            await apiService.saveData(state.user.email, currentData);
-        }
-    };
-    
     return {
       login: async (email, password) => {
         const user = await apiService.login(email, password);
         const data = await apiService.getData(user.email);
-        const users = apiService.getUsersList();
+        const users = await apiService.getUsersList();
         dispatch({ type: 'LOGIN', payload: { user, data: data || MOCK_INITIAL_DATA, users } });
         return user;
       },
       register: async (name, email, password) => {
         const user = await apiService.register(name, email, password);
         const data = MOCK_INITIAL_DATA;
-        const users = apiService.getUsersList();
-        await apiService.saveData(user.email, data);
+        const users = await apiService.getUsersList();
         dispatch({ type: 'LOGIN', payload: { user, data, users } });
         return user;
       },
@@ -190,52 +177,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         dispatch({ type: 'LOGOUT' });
       },
       addCustomer: async (customerData: Omit<Customer, 'id'>) => {
-          const newCustomer = { ...customerData, id: `c${Date.now()}` };
-          const newCustomers = [...state.customers, newCustomer];
-          await saveData({ customers: newCustomers });
+          const newCustomer = await apiService.addCustomer(customerData);
           dispatch({ type: 'ADD_CUSTOMER', payload: newCustomer });
       },
       updateCustomer: async (customer: Customer) => {
-          const newCustomers = state.customers.map(c => c.id === customer.id ? customer : c);
-          await saveData({ customers: newCustomers });
+          await apiService.updateCustomer(customer);
           dispatch({ type: 'UPDATE_CUSTOMER', payload: customer });
       },
       deleteCustomer: async (id: string) => {
-          const newCustomers = state.customers.filter(c => c.id !== id);
-          const newSales = state.sales.filter(s => s.customerId !== id);
-          await saveData({ customers: newCustomers, sales: newSales });
+          await apiService.deleteCustomer(id);
           dispatch({ type: 'DELETE_CUSTOMER', payload: id });
-          dispatch({ type: 'SET_STATE', payload: { sales: newSales, customers: newCustomers, products: state.products, heldOrders: state.heldOrders, barInfo: state.barInfo } });
       },
       addProduct: async (productData: Omit<Product, 'id'>) => {
-          const newProduct = { ...productData, id: `p${Date.now()}`};
-          const newProducts = [...state.products, newProduct];
-          await saveData({ products: newProducts });
+          const newProduct = await apiService.addProduct(productData);
           dispatch({ type: 'ADD_PRODUCT', payload: newProduct });
       },
       updateProduct: async (product: Product) => {
-          const newProducts = state.products.map(p => p.id === product.id ? product : p);
-          await saveData({ products: newProducts });
+          await apiService.updateProduct(product);
           dispatch({ type: 'UPDATE_PRODUCT', payload: product });
       },
       deleteProduct: async (id: string) => {
-          const newProducts = state.products.filter(p => p.id !== id);
-          await saveData({ products: newProducts });
+          await apiService.deleteProduct(id);
           dispatch({ type: 'DELETE_PRODUCT', payload: id });
       },
       addSale: async (saleData: Omit<Sale, 'id' | 'date' | 'paymentStatus'>) => {
-          const newSale = {
-              ...saleData,
-              id: `s${Date.now()}`,
-              date: new Date().toISOString(),
-              paymentStatus: saleData.paymentMethod === PaymentMethod.Fiado ? PaymentStatus.Fiado : PaymentStatus.Pago,
-          };
-          const newSales = [...state.sales, newSale];
-          const newProducts = state.products.map(p => {
-              const item = newSale.items.find(i => i.productId === p.id);
-              return item ? { ...p, stock: p.stock - item.quantity } : p;
-          });
-          await saveData({ sales: newSales, products: newProducts });
+          const newSale = await apiService.addSale(saleData);
           dispatch({ type: 'ADD_SALE', payload: newSale });
       },
       payDebt: async (customerId: string, amount: number) => {
@@ -244,33 +210,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         
         let remainingAmount = amount;
+        const saleIdsToPay: string[] = [];
         const updatedSales = [...state.sales];
 
         for (const sale of customerSales) {
             if (remainingAmount <= 0) break;
-            const saleIndex = updatedSales.findIndex(s => s.id === sale.id);
-            if (saleIndex === -1) continue;
             if (remainingAmount >= sale.total) {
-                updatedSales[saleIndex] = { ...sale, paymentStatus: PaymentStatus.Pago };
+                saleIdsToPay.push(sale.id);
+                const saleIndex = updatedSales.findIndex(s => s.id === sale.id);
+                if (saleIndex !== -1) {
+                    updatedSales[saleIndex] = { ...sale, paymentStatus: PaymentStatus.Pago };
+                }
                 remainingAmount -= sale.total;
             } 
         }
-        await saveData({ sales: updatedSales });
-        dispatch({ type: 'PAY_DEBT', payload: updatedSales });
+
+        if (saleIdsToPay.length > 0) {
+            await apiService.payDebt(saleIdsToPay);
+            dispatch({ type: 'PAY_DEBT', payload: updatedSales });
+        }
       },
       holdOrder: async (orderData: Omit<HeldOrder, 'id'|'heldAt'>) => {
-        const newHeldOrder = { ...orderData, id: `h${Date.now()}`, heldAt: new Date().toISOString() };
-        const newHeldOrders = [...state.heldOrders, newHeldOrder];
-        await saveData({ heldOrders: newHeldOrders });
+        const newHeldOrder = await apiService.holdOrder(orderData);
         dispatch({ type: 'HOLD_ORDER', payload: newHeldOrder });
       },
       deleteHeldOrder: async (id: string) => {
-        const newHeldOrders = state.heldOrders.filter(o => o.id !== id);
-        await saveData({ heldOrders: newHeldOrders });
+        await apiService.deleteHeldOrder(id);
         dispatch({ type: 'DELETE_HELD_ORDER', payload: id });
       },
       updateBarInfo: async (info: BarInfo) => {
-        await saveData({ barInfo: info });
+        await apiService.updateBarInfo(info);
         dispatch({ type: 'UPDATE_BAR_INFO', payload: info });
       },
       updateUser: async (user: User) => {
@@ -281,8 +250,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         await apiService.deleteUser(id);
         dispatch({ type: 'DELETE_USER', payload: id });
       },
+      addUser: async (name: string, email: string, password: string) => {
+        const newUser = await apiService.addUser(name, email, password);
+        const users = await apiService.getUsersList();
+        dispatch({ type: 'SET_USERS', payload: users });
+      },
     };
   }, [state]);
+
 
   const contextValue = { state, actions };
 

@@ -43,21 +43,16 @@ const Users: React.FC = () => {
 
     const handleSaveUser = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (editingUser) {
-            await actions.updateUser({ ...editingUser, ...formData });
-        } else {
-            // Registering a new user via the existing register action might be better, 
-            // but the request is to manage users. 
-            // For simplicity in this view, we'll use register if it's a new user creation, 
-            // or we could add an addUserInfo action. 
-            // Since register handles session, let's assume we just want to update existing ones 
-            // or the user can register themselves. 
-            // However, to fulfill "editar e remover", I'll focus on those.
-            // If they want to add, they can use the login/register screen or I can add an add action.
-            // Let's stick to edit/remove as requested.
-            alert('Para cadastrar novos usuários, utilize a tela de registro.');
+        try {
+            if (editingUser) {
+                await actions.updateUser({ ...editingUser, ...formData });
+            } else {
+                await actions.addUser(formData.name, formData.email, formData.password);
+            }
+            setIsModalOpen(false);
+        } catch (error: any) {
+            alert(error.message || 'Erro ao salvar usuário');
         }
-        setIsModalOpen(false);
     };
 
     const handleDeleteUser = async (id: string) => {
@@ -74,14 +69,23 @@ const Users: React.FC = () => {
         <div className="p-4 md:p-6 space-y-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <h1 className="text-3xl font-bold text-white">Gerenciamento de Usuários</h1>
-                <div className="w-full md:w-64">
-                    <input
-                        type="text"
-                        placeholder="Buscar usuários..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full bg-gray-800 border border-gray-700 rounded-md py-2 px-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
+                <div className="flex gap-4 w-full md:w-auto">
+                    <div className="w-full md:w-64">
+                        <input
+                            type="text"
+                            placeholder="Buscar usuários..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full bg-gray-800 border border-gray-700 rounded-md py-2 px-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                    </div>
+                    <button 
+                        onClick={() => handleOpenModal()} 
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md flex items-center gap-2 transition-colors whitespace-nowrap"
+                    >
+                        <PlusIcon className="w-5 h-5" />
+                        Novo Usuário
+                    </button>
                 </div>
             </div>
 

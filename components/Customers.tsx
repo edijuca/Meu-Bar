@@ -120,13 +120,17 @@ const Customers: React.FC = () => {
     );
 
     const handleSaveCustomer = async (customerData: Omit<Customer, 'id'>) => {
-        if (editingCustomer) {
-            await actions.updateCustomer({ ...customerData, id: editingCustomer.id });
-        } else {
-            await actions.addCustomer(customerData);
+        try {
+            if (editingCustomer) {
+                await actions.updateCustomer({ ...customerData, id: editingCustomer.id });
+            } else {
+                await actions.addCustomer(customerData);
+            }
+            setIsModalOpen(false);
+            setEditingCustomer(undefined);
+        } catch (error: any) {
+            alert(error.message || 'Erro ao salvar cliente. Verifique sua conexão e se o banco de dados está configurado.');
         }
-        setIsModalOpen(false);
-        setEditingCustomer(undefined);
     };
 
     const handleEdit = (customer: Customer) => {

@@ -67,13 +67,17 @@ const Products: React.FC = () => {
     );
 
     const handleSaveProduct = async (productData: Omit<Product, 'id'>) => {
-        if (editingProduct) {
-            await actions.updateProduct({ ...productData, id: editingProduct.id });
-        } else {
-            await actions.addProduct(productData);
+        try {
+            if (editingProduct) {
+                await actions.updateProduct({ ...productData, id: editingProduct.id });
+            } else {
+                await actions.addProduct(productData);
+            }
+            setIsModalOpen(false);
+            setEditingProduct(undefined);
+        } catch (error: any) {
+            alert(error.message || 'Erro ao salvar produto. Verifique sua conexão e se o banco de dados está configurado.');
         }
-        setIsModalOpen(false);
-        setEditingProduct(undefined);
     };
 
     const handleEdit = (product: Product) => {

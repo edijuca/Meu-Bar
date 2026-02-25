@@ -11,50 +11,59 @@ const Reports: React.FC = () => {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+    const getLocalDateString = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
 
-    if (!startDate && !endDate) {
-        const sevenDaysAgo = new Date(today);
-        sevenDaysAgo.setDate(today.getDate() - 6); // Include today
-        setStartDate(sevenDaysAgo.toISOString().split('T')[0]);
-        setEndDate(todayStr);
-    }
+    React.useEffect(() => {
+        if (!startDate && !endDate) {
+            const today = new Date();
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(today.getDate() - 6);
+            
+            setStartDate(getLocalDateString(sevenDaysAgo));
+            setEndDate(getLocalDateString(today));
+        }
+    }, [startDate, endDate]);
     
     const handlePeriodChange = (newPeriod: '7d' | 'month' | 'year' | 'custom') => {
         setPeriod(newPeriod);
         const today = new Date();
-        let start = new Date(today);
+        let start = new Date();
 
         switch (newPeriod) {
             case '7d':
                 start.setDate(today.getDate() - 6);
-                setStartDate(start.toISOString().split('T')[0]);
-                setEndDate(today.toISOString().split('T')[0]);
+                setStartDate(getLocalDateString(start));
+                setEndDate(getLocalDateString(today));
                 break;
             case 'month':
                 start = new Date(today.getFullYear(), today.getMonth(), 1);
-                setStartDate(start.toISOString().split('T')[0]);
-                setEndDate(today.toISOString().split('T')[0]);
+                setStartDate(getLocalDateString(start));
+                setEndDate(getLocalDateString(today));
                 break;
             case 'year':
                 start = new Date(today.getFullYear(), 0, 1);
-                setStartDate(start.toISOString().split('T')[0]);
-                setEndDate(today.toISOString().split('T')[0]);
+                setStartDate(getLocalDateString(start));
+                setEndDate(getLocalDateString(today));
                 break;
             case 'custom':
-                 // Let user select dates
                 break;
         }
     };
     
     const filteredSales = useMemo(() => {
         if (!startDate || !endDate) return [];
-        const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
-
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
+        
+        // Create dates at the very beginning and end of the local day
+        const [sYear, sMonth, sDay] = startDate.split('-').map(Number);
+        const [eYear, eMonth, eDay] = endDate.split('-').map(Number);
+        
+        const start = new Date(sYear, sMonth - 1, sDay, 0, 0, 0, 0);
+        const end = new Date(eYear, eMonth - 1, eDay, 23, 59, 59, 999);
         
         return sales.filter(sale => {
             const saleDate = new Date(sale.date);
@@ -95,9 +104,10 @@ const Reports: React.FC = () => {
         const chartData = Object.entries(salesByDay)
             .map(([date, total]) => ({ date, total }))
             .sort((a, b) => {
-                const [dayA, monthA] = a.date.split('/');
-                const [dayB, monthB] = b.date.split('/');
-                return new Date(`${monthA}/${dayA}/2000`).getTime() - new Date(`${monthB}/${dayB}/2000`).getTime();
+                const [dayA, monthA] = a.date.split('/').map(Number);
+                const [dayB, monthB] = b.date.split('/').map(Number);
+                if (monthA !== monthB) return monthA - monthB;
+                return dayA - dayB;
             });
 
         return { totalRevenue, totalSalesCount, averageSaleValue, topSellingProducts, chartData };
