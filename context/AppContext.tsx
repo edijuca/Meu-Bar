@@ -14,11 +14,12 @@ interface AppState {
   sales: Sale[];
   heldOrders: HeldOrder[];
   barInfo: BarInfo;
+  users: User[];
 }
 
 type Action =
-  | { type: 'INITIALIZE'; payload: { user: User; data: Omit<AppState, 'isAuthenticated' | 'user' | 'status'> } }
-  | { type: 'LOGIN'; payload: { user: User; data: Omit<AppState, 'isAuthenticated' | 'user' | 'status'> } }
+  | { type: 'INITIALIZE'; payload: { user: User; data: Omit<AppState, 'isAuthenticated' | 'user' | 'status' | 'users'>; users: User[] } }
+  | { type: 'LOGIN'; payload: { user: User; data: Omit<AppState, 'isAuthenticated' | 'user' | 'status' | 'users'>; users: User[] } }
   | { type: 'LOGOUT' }
   | { type: 'SET_STATE'; payload: Omit<AppState, 'isAuthenticated' | 'user' | 'status'> }
   | { type: 'ADD_CUSTOMER'; payload: Customer }
@@ -31,7 +32,10 @@ type Action =
   | { type: 'PAY_DEBT'; payload: Sale[] }
   | { type: 'HOLD_ORDER'; payload: HeldOrder }
   | { type: 'DELETE_HELD_ORDER'; payload: string }
-  | { type: 'UPDATE_BAR_INFO', payload: BarInfo };
+  | { type: 'UPDATE_BAR_INFO', payload: BarInfo }
+  | { type: 'SET_USERS', payload: User[] }
+  | { type: 'UPDATE_USER', payload: User }
+  | { type: 'DELETE_USER', payload: string };
 
 // --- Initial State ---
 
@@ -44,6 +48,7 @@ const initialState: AppState = {
   sales: [],
   heldOrders: [],
   barInfo: { name: '', email: '', phone: '', address: '' },
+  users: [],
 };
 
 // --- Reducer ---
@@ -58,11 +63,12 @@ const appReducer = (state: AppState, action: Action): AppState => {
         status: 'ready',
         user: action.payload.user,
         ...action.payload.data,
+        users: action.payload.users,
       };
     case 'LOGOUT':
       return { ...initialState, status: 'ready' };
     case 'SET_STATE':
-      return { ...state, ...action.payload };
+        return { ...state, ...action.payload };
     case 'ADD_CUSTOMER':
       return { ...state, customers: [...state.customers, action.payload] };
     case 'UPDATE_CUSTOMER':
@@ -77,21 +83,24 @@ const appReducer = (state: AppState, action: Action): AppState => {
       return { ...state, products: state.products.filter(p => p.id !== action.payload) };
     case 'ADD_SALE':
       const newProducts = state.products.map(p => {
-        const item = action.payload.items.find((i: any) => i.productId === p.id);
-        return item ? { ...p, stock: p.stock - item.quantity } : p;
+          const item = action.payload.items.find(i => i.productId === p.id);
+          return item ? { ...p, stock: p.stock - item.quantity } : p;
       });
       return { ...state, sales: [...state.sales, action.payload], products: newProducts };
     case 'PAY_DEBT':
-      // Optimistic update for paid sales
-      const updatedSalesMap = new Map(action.payload.map(s => [s.id, s]));
-      const newSalesList = state.sales.map(s => updatedSalesMap.get(s.id) || s);
-      return { ...state, sales: newSalesList };
+      return { ...state, sales: action.payload };
     case 'HOLD_ORDER':
       return { ...state, heldOrders: [...state.heldOrders, action.payload] };
     case 'DELETE_HELD_ORDER':
       return { ...state, heldOrders: state.heldOrders.filter(o => o.id !== action.payload) };
     case 'UPDATE_BAR_INFO':
       return { ...state, barInfo: action.payload };
+    case 'SET_USERS':
+      return { ...state, users: action.payload };
+    case 'UPDATE_USER':
+      return { ...state, users: state.users.map(u => u.id === action.payload.id ? action.payload : u) };
+    case 'DELETE_USER':
+      return { ...state, users: state.users.filter(u => u.id !== action.payload) };
     default:
       return state;
   }
@@ -116,6 +125,8 @@ interface AppContextType {
     holdOrder: (order: Omit<HeldOrder, 'id' | 'heldAt'>) => Promise<void>;
     deleteHeldOrder: (id: string) => Promise<void>;
     updateBarInfo: (info: BarInfo) => Promise<void>;
+    updateUser: (user: User) => Promise<void>;
+    deleteUser: (id: string) => Promise<void>;
   };
 }
 
@@ -131,23 +142,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   useEffect(() => {
     const initializeApp = async () => {
-      try {
-        // Just check if we can fetch data, simple session check
-        const sessionUser = await apiService.checkSession();
-        if (sessionUser) {
-          const data = await apiService.getData(sessionUser.email);
-          if (data) {
-            dispatch({ type: 'INITIALIZE', payload: { user: sessionUser, data: data } });
-          } else {
-            // If data fetch fails but user exists, maybe DB is empty or error
-            console.error("Failed to fetch data");
-            dispatch({ type: 'LOGOUT' });
-          }
-        } else {
-          dispatch({ type: 'LOGOUT' });
-        }
-      } catch (e) {
-        console.error("Initialization error", e);
+      const sessionUser = await apiService.checkSession();
+      if (sessionUser) {
+        const data = await apiService.getData(sessionUser.email);
+        const users = apiService.getUsersList();
+        dispatch({ type: 'INITIALIZE', payload: { user: sessionUser, data: data || MOCK_INITIAL_DATA, users } });
+      } else {
+        // No session, just mark as ready to show login screen
         dispatch({ type: 'LOGOUT' });
       }
     };
@@ -155,17 +156,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, []);
 
   const actions = useMemo(() => {
+    const saveData = async (newState: Partial<AppState>) => {
+        if (state.user) {
+            const currentData = {
+                customers: newState.customers ?? state.customers,
+                products: newState.products ?? state.products,
+                sales: newState.sales ?? state.sales,
+                heldOrders: newState.heldOrders ?? state.heldOrders,
+                barInfo: newState.barInfo ?? state.barInfo,
+            };
+            await apiService.saveData(state.user.email, currentData);
+        }
+    };
+    
     return {
       login: async (email, password) => {
         const user = await apiService.login(email, password);
         const data = await apiService.getData(user.email);
-        dispatch({ type: 'LOGIN', payload: { user, data: data || { customers: [], products: [], sales: [], heldOrders: [], barInfo: { name: '', email: '', phone: '', address: '' } } } });
+        const users = apiService.getUsersList();
+        dispatch({ type: 'LOGIN', payload: { user, data: data || MOCK_INITIAL_DATA, users } });
         return user;
       },
       register: async (name, email, password) => {
         const user = await apiService.register(name, email, password);
-        // On register, data is empty
-        dispatch({ type: 'LOGIN', payload: { user, data: { customers: [], products: [], sales: [], heldOrders: [], barInfo: { name: '', email: '', phone: '', address: '' } } } });
+        const data = MOCK_INITIAL_DATA;
+        const users = apiService.getUsersList();
+        await apiService.saveData(user.email, data);
+        dispatch({ type: 'LOGIN', payload: { user, data, users } });
         return user;
       },
       logout: async () => {
@@ -173,72 +190,99 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         dispatch({ type: 'LOGOUT' });
       },
       addCustomer: async (customerData: Omit<Customer, 'id'>) => {
-        const newCustomer = await apiService.addCustomer(customerData);
-        dispatch({ type: 'ADD_CUSTOMER', payload: newCustomer });
+          const newCustomer = { ...customerData, id: `c${Date.now()}` };
+          const newCustomers = [...state.customers, newCustomer];
+          await saveData({ customers: newCustomers });
+          dispatch({ type: 'ADD_CUSTOMER', payload: newCustomer });
       },
       updateCustomer: async (customer: Customer) => {
-        const updatedCustomer = await apiService.updateCustomer(customer);
-        dispatch({ type: 'UPDATE_CUSTOMER', payload: updatedCustomer });
+          const newCustomers = state.customers.map(c => c.id === customer.id ? customer : c);
+          await saveData({ customers: newCustomers });
+          dispatch({ type: 'UPDATE_CUSTOMER', payload: customer });
       },
       deleteCustomer: async (id: string) => {
-        await apiService.deleteCustomer(id);
-        dispatch({ type: 'DELETE_CUSTOMER', payload: id });
+          const newCustomers = state.customers.filter(c => c.id !== id);
+          const newSales = state.sales.filter(s => s.customerId !== id);
+          await saveData({ customers: newCustomers, sales: newSales });
+          dispatch({ type: 'DELETE_CUSTOMER', payload: id });
+          dispatch({ type: 'SET_STATE', payload: { sales: newSales, customers: newCustomers, products: state.products, heldOrders: state.heldOrders, barInfo: state.barInfo } });
       },
       addProduct: async (productData: Omit<Product, 'id'>) => {
-        const newProduct = await apiService.addProduct(productData);
-        dispatch({ type: 'ADD_PRODUCT', payload: newProduct });
+          const newProduct = { ...productData, id: `p${Date.now()}`};
+          const newProducts = [...state.products, newProduct];
+          await saveData({ products: newProducts });
+          dispatch({ type: 'ADD_PRODUCT', payload: newProduct });
       },
       updateProduct: async (product: Product) => {
-        const updatedProduct = await apiService.updateProduct(product);
-        dispatch({ type: 'UPDATE_PRODUCT', payload: updatedProduct });
+          const newProducts = state.products.map(p => p.id === product.id ? product : p);
+          await saveData({ products: newProducts });
+          dispatch({ type: 'UPDATE_PRODUCT', payload: product });
       },
       deleteProduct: async (id: string) => {
-        await apiService.deleteProduct(id);
-        dispatch({ type: 'DELETE_PRODUCT', payload: id });
+          const newProducts = state.products.filter(p => p.id !== id);
+          await saveData({ products: newProducts });
+          dispatch({ type: 'DELETE_PRODUCT', payload: id });
       },
       addSale: async (saleData: Omit<Sale, 'id' | 'date' | 'paymentStatus'>) => {
-        const newSale = await apiService.addSale(saleData);
-        dispatch({ type: 'ADD_SALE', payload: newSale });
+          const newSale = {
+              ...saleData,
+              id: `s${Date.now()}`,
+              date: new Date().toISOString(),
+              paymentStatus: saleData.paymentMethod === PaymentMethod.Fiado ? PaymentStatus.Fiado : PaymentStatus.Pago,
+          };
+          const newSales = [...state.sales, newSale];
+          const newProducts = state.products.map(p => {
+              const item = newSale.items.find(i => i.productId === p.id);
+              return item ? { ...p, stock: p.stock - item.quantity } : p;
+          });
+          await saveData({ sales: newSales, products: newProducts });
+          dispatch({ type: 'ADD_SALE', payload: newSale });
       },
       payDebt: async (customerId: string, amount: number) => {
-        // Logic to calculate which sales are paid is moved to backend or we do it here.
-        // Current backend expects specific sale IDs to pay.
-        // So we need to calculate locally which sales to pay, then send IDs to backend.
-
         const customerSales = state.sales
-          .filter(s => s.customerId === customerId && s.paymentStatus === 'Fiado') // String match!
-          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
+            .filter(s => s.customerId === customerId && s.paymentStatus === PaymentStatus.Fiado)
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        
         let remainingAmount = amount;
-        const salesToPay: Sale[] = [];
+        const updatedSales = [...state.sales];
 
         for (const sale of customerSales) {
-          if (remainingAmount <= 0) break;
-          if (remainingAmount >= sale.total) {
-            salesToPay.push({ ...sale, paymentStatus: PaymentStatus.Pago });
-            remainingAmount -= sale.total;
-          }
+            if (remainingAmount <= 0) break;
+            const saleIndex = updatedSales.findIndex(s => s.id === sale.id);
+            if (saleIndex === -1) continue;
+            if (remainingAmount >= sale.total) {
+                updatedSales[saleIndex] = { ...sale, paymentStatus: PaymentStatus.Pago };
+                remainingAmount -= sale.total;
+            } 
         }
-
-        if (salesToPay.length > 0) {
-          await apiService.payDebt(salesToPay.map(s => s.id));
-          dispatch({ type: 'PAY_DEBT', payload: salesToPay });
-        }
+        await saveData({ sales: updatedSales });
+        dispatch({ type: 'PAY_DEBT', payload: updatedSales });
       },
-      holdOrder: async (orderData: Omit<HeldOrder, 'id' | 'heldAt'>) => {
-        const newHeldOrder = await apiService.holdOrder(orderData);
+      holdOrder: async (orderData: Omit<HeldOrder, 'id'|'heldAt'>) => {
+        const newHeldOrder = { ...orderData, id: `h${Date.now()}`, heldAt: new Date().toISOString() };
+        const newHeldOrders = [...state.heldOrders, newHeldOrder];
+        await saveData({ heldOrders: newHeldOrders });
         dispatch({ type: 'HOLD_ORDER', payload: newHeldOrder });
       },
       deleteHeldOrder: async (id: string) => {
-        await apiService.deleteHeldOrder(id);
+        const newHeldOrders = state.heldOrders.filter(o => o.id !== id);
+        await saveData({ heldOrders: newHeldOrders });
         dispatch({ type: 'DELETE_HELD_ORDER', payload: id });
       },
       updateBarInfo: async (info: BarInfo) => {
-        const updatedInfo = await apiService.updateBarInfo(info);
-        dispatch({ type: 'UPDATE_BAR_INFO', payload: updatedInfo });
+        await saveData({ barInfo: info });
+        dispatch({ type: 'UPDATE_BAR_INFO', payload: info });
+      },
+      updateUser: async (user: User) => {
+        await apiService.updateUser(user);
+        dispatch({ type: 'UPDATE_USER', payload: user });
+      },
+      deleteUser: async (id: string) => {
+        await apiService.deleteUser(id);
+        dispatch({ type: 'DELETE_USER', payload: id });
       },
     };
-  }, [state.sales, state.customers, state.products, state.heldOrders]);
+  }, [state]);
 
   const contextValue = { state, actions };
 

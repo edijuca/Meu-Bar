@@ -1,5 +1,6 @@
-import React, { useState, useContext, useMemo, useEffect } from 'react';
+import React, { useState, useContext, useMemo } from 'react';
 import { AppContext } from '../context/AppContext';
+import { Sale } from '../types';
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 const Reports: React.FC = () => {
@@ -9,68 +10,52 @@ const Reports: React.FC = () => {
     const [period, setPeriod] = useState<'7d' | 'month' | 'year' | 'custom'>('7d');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
 
-    // Initialize dates in useEffect to avoid render loop and ensure client-side consistency
-    useEffect(() => {
-        const today = new Date();
+    if (!startDate && !endDate) {
         const sevenDaysAgo = new Date(today);
-        sevenDaysAgo.setDate(today.getDate() - 6);
-
-        // Use local date strings (YYYY-MM-DD)
-        const formatDate = (date: Date) => {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        };
-
-        setStartDate(formatDate(sevenDaysAgo));
-        setEndDate(formatDate(today));
-    }, []);
-
+        sevenDaysAgo.setDate(today.getDate() - 6); // Include today
+        setStartDate(sevenDaysAgo.toISOString().split('T')[0]);
+        setEndDate(todayStr);
+    }
+    
     const handlePeriodChange = (newPeriod: '7d' | 'month' | 'year' | 'custom') => {
         setPeriod(newPeriod);
         const today = new Date();
         let start = new Date(today);
 
-        const formatDate = (date: Date) => {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        };
-
         switch (newPeriod) {
             case '7d':
                 start.setDate(today.getDate() - 6);
-                setStartDate(formatDate(start));
-                setEndDate(formatDate(today));
+                setStartDate(start.toISOString().split('T')[0]);
+                setEndDate(today.toISOString().split('T')[0]);
                 break;
             case 'month':
                 start = new Date(today.getFullYear(), today.getMonth(), 1);
-                setStartDate(formatDate(start));
-                setEndDate(formatDate(today));
+                setStartDate(start.toISOString().split('T')[0]);
+                setEndDate(today.toISOString().split('T')[0]);
                 break;
             case 'year':
                 start = new Date(today.getFullYear(), 0, 1);
-                setStartDate(formatDate(start));
-                setEndDate(formatDate(today));
+                setStartDate(start.toISOString().split('T')[0]);
+                setEndDate(today.toISOString().split('T')[0]);
                 break;
             case 'custom':
-                // Let user select dates
+                 // Let user select dates
                 break;
         }
     };
-
+    
     const filteredSales = useMemo(() => {
         if (!startDate || !endDate) return [];
-        // Create dates in local time (00:00:00)
-        const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
-        const start = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0);
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
 
-        const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
-        const end = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999);
-
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        
         return sales.filter(sale => {
             const saleDate = new Date(sale.date);
             return saleDate >= start && saleDate <= end;
@@ -81,31 +66,24 @@ const Reports: React.FC = () => {
         const totalRevenue = filteredSales.reduce((sum, sale) => sum + sale.total, 0);
         const totalSalesCount = filteredSales.length;
         const averageSaleValue = totalSalesCount > 0 ? totalRevenue / totalSalesCount : 0;
-
+        
         const productCount: { [key: string]: { name: string, quantity: number } } = {};
         filteredSales.forEach(sale => {
-            // Ensure sale.items exists (it should, but safety first)
-            if (sale.items) {
-                sale.items.forEach(item => {
-                    const product = products.find(p => p.id === item.productId);
-                    if (product) {
-                        if (!productCount[item.productId]) {
-                            productCount[item.productId] = { name: product.name, quantity: 0 };
-                        }
-                        productCount[item.productId].quantity += item.quantity;
+            sale.items.forEach(item => {
+                const product = products.find(p => p.id === item.productId);
+                if (product) {
+                    if (!productCount[item.productId]) {
+                        productCount[item.productId] = { name: product.name, quantity: 0 };
                     }
-                });
-            }
+                    productCount[item.productId].quantity += item.quantity;
+                }
+            });
         });
         const topSellingProducts = Object.values(productCount)
             .sort((a, b) => b.quantity - a.quantity)
             .slice(0, 5);
-
+            
         const salesByDay: { [key: string]: number } = {};
-
-        // Initialize chart data with 0 for all days in range if range is small? 
-        // Or just show days with sales. Existing logic shows days with sales.
-
         filteredSales.forEach(sale => {
             const day = new Date(sale.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
             if (!salesByDay[day]) {
@@ -119,17 +97,18 @@ const Reports: React.FC = () => {
             .sort((a, b) => {
                 const [dayA, monthA] = a.date.split('/');
                 const [dayB, monthB] = b.date.split('/');
-                return new Date(2000, parseInt(monthA) - 1, parseInt(dayA)).getTime() - new Date(2000, parseInt(monthB) - 1, parseInt(dayB)).getTime();
+                return new Date(`${monthA}/${dayA}/2000`).getTime() - new Date(`${monthB}/${dayB}/2000`).getTime();
             });
 
         return { totalRevenue, totalSalesCount, averageSaleValue, topSellingProducts, chartData };
     }, [filteredSales, products]);
-
+    
     const PeriodButton: React.FC<{ label: string; value: typeof period; }> = ({ label, value }) => (
         <button
             onClick={() => handlePeriodChange(value)}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${period === value ? 'bg-indigo-600 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                }`}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                period === value ? 'bg-indigo-600 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+            }`}
         >
             {label}
         </button>
@@ -137,7 +116,7 @@ const Reports: React.FC = () => {
 
     return (
         <div className="p-4 md:p-6 space-y-6">
-            <h1 className="text-3xl font-bold text-white">Relatório de Vendas</h1>
+            <h1 className="text-3xl font-bold text-white">Relatório de Atendimentos</h1>
 
             <div className="bg-gray-800 p-4 rounded-lg shadow-lg flex flex-col md:flex-row gap-4 justify-between items-center">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -148,13 +127,13 @@ const Reports: React.FC = () => {
                 </div>
                 {period === 'custom' && (
                     <div className="flex items-center gap-2 flex-wrap">
-                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-indigo-500" />
+                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-indigo-500"/>
                         <span className="text-gray-400">até</span>
-                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-indigo-500" />
+                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-indigo-500"/>
                     </div>
                 )}
             </div>
-
+            
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
                     <h2 className="text-gray-400 text-sm font-medium">Faturamento Total</h2>
@@ -163,32 +142,30 @@ const Reports: React.FC = () => {
                     </p>
                 </div>
                 <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
-                    <h2 className="text-gray-400 text-sm font-medium">Total de Vendas</h2>
+                    <h2 className="text-gray-400 text-sm font-medium">Total de Atendimentos</h2>
                     <p className="text-3xl font-semibold text-white mt-1">{reportData.totalSalesCount}</p>
                 </div>
                 <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
                     <h2 className="text-gray-400 text-sm font-medium">Ticket Médio</h2>
                     <p className="text-3xl font-semibold text-white mt-1">
-                        {reportData.averageSaleValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                         {reportData.averageSaleValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                     </p>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 bg-gray-800 p-6 rounded-lg shadow-lg">
-                    <h2 className="text-xl font-semibold mb-4 text-white">Vendas por Dia</h2>
-                    <div style={{ width: '100%', height: 300 }}>
-                        <ResponsiveContainer>
-                            <LineChart data={reportData.chartData}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#4a5568" />
-                                <XAxis dataKey="date" stroke="#9ca3af" tick={{ fill: '#d1d5db' }} />
-                                <YAxis stroke="#9ca3af" tick={{ fill: '#d1d5db' }} tickFormatter={(value: number) => `R$${value}`} />
-                                <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151' }} />
-                                <Legend wrapperStyle={{ color: '#d1d5db' }} />
-                                <Line type="monotone" dataKey="total" stroke="#818cf8" strokeWidth={2} name="Total (R$)" />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </div>
+                    <h2 className="text-xl font-semibold mb-4 text-white">Atendimentos por Dia</h2>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <LineChart data={reportData.chartData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#4a5568" />
+                            <XAxis dataKey="date" stroke="#9ca3af" tick={{ fill: '#d1d5db' }} />
+                            <YAxis stroke="#9ca3af" tick={{ fill: '#d1d5db' }} tickFormatter={(value: number) => `R$${value}`} />
+                            <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151' }} />
+                            <Legend wrapperStyle={{ color: '#d1d5db' }}/>
+                            <Line type="monotone" dataKey="total" stroke="#818cf8" strokeWidth={2} name="Total (R$)"/>
+                        </LineChart>
+                    </ResponsiveContainer>
                 </div>
                 <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
                     <h2 className="text-xl font-semibold mb-4 text-white">Produtos Mais Vendidos</h2>
@@ -203,7 +180,7 @@ const Reports: React.FC = () => {
                         </ul>
                     ) : (
                         <div className="flex items-center justify-center h-full">
-                            <p className="text-gray-500">Nenhum produto vendido no período.</p>
+                           <p className="text-gray-500">Nenhum produto vendido no período.</p>
                         </div>
                     )}
                 </div>

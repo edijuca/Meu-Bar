@@ -110,7 +110,7 @@ const Customers: React.FC = () => {
     }, [sales]);
 
     const totalOutstandingDebt = useMemo(() => {
-        return Array.from(customerDebts.values()).reduce((sum, debt) => sum + debt, 0);
+        return Array.from(customerDebts.values()).reduce((sum: number, debt: number) => sum + debt, 0);
     }, [customerDebts]);
 
     const filteredCustomers = useMemo(() => 

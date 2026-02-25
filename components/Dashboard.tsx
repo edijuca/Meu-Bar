@@ -66,7 +66,7 @@ const Dashboard: React.FC = () => {
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
-                    <h2 className="text-gray-400 text-sm font-medium">Vendas de Hoje</h2>
+                    <h2 className="text-gray-400 text-sm font-medium">Atendimentos de Hoje</h2>
                     <p className="text-3xl font-semibold text-white mt-1">
                         {totalSalesToday.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                     </p>
@@ -85,7 +85,7 @@ const Dashboard: React.FC = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
-                    <h2 className="text-xl font-semibold mb-4 text-white">Vendas por Forma de Pagamento</h2>
+                    <h2 className="text-xl font-semibold mb-4 text-white">Atendimentos por Forma de Pagamento</h2>
                     <ResponsiveContainer width="100%" height={300}>
                         <BarChart data={salesByPaymentMethod}>
                             <XAxis dataKey="name" stroke="#9ca3af" tick={{ fill: '#d1d5db' }} />
