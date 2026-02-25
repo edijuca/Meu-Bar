@@ -119,27 +119,27 @@ const Products: React.FC = () => {
             </div>
 
             <div className="bg-gray-800 rounded-lg shadow-lg overflow-x-auto">
-                <table className="w-full text-left">
+                <table className="w-full text-left border-collapse">
                     <thead className="bg-gray-900/50">
-                        <tr>
-                            <th className="p-4 font-semibold">Nome</th>
-                            <th className="p-4 font-semibold">Categoria</th>
-                            <th className="p-4 font-semibold">Preço</th>
-                            <th className="p-4 font-semibold">Estoque</th>
-                            <th className="p-4 font-semibold">Ações</th>
+                        <tr className="text-gray-300 uppercase text-xs font-semibold tracking-wider">
+                            <th className="px-4 py-4">Nome</th>
+                            <th className="hidden sm:table-cell px-4 py-4">Categoria</th>
+                            <th className="px-4 py-4">Preço</th>
+                            <th className="px-4 py-4">Estoque</th>
+                            <th className="px-4 py-4">Ações</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-700">
                         {filteredProducts.map(product => (
                             <tr key={product.id} className="hover:bg-gray-700/50 transition-colors">
-                                <td className="p-4">{product.name}</td>
-                                <td className="p-4 text-gray-400">{product.category}</td>
-                                <td className="p-4">{product.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-                                <td className={`p-4 font-semibold ${product.stock <= LOW_STOCK_THRESHOLD ? 'text-red-400' : 'text-green-400'}`}>
+                                <td className="px-4 py-4 text-sm font-medium text-white">{product.name}</td>
+                                <td className="hidden sm:table-cell px-4 py-4 text-sm text-gray-400">{product.category}</td>
+                                <td className="px-4 py-4 text-sm text-white">{product.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                                <td className={`px-4 py-4 text-sm font-semibold ${product.stock <= LOW_STOCK_THRESHOLD ? 'text-red-400' : 'text-green-400'}`}>
                                     {product.stock}
-                                    {product.stock <= LOW_STOCK_THRESHOLD && <span className="text-xs ml-2">(Baixo)</span>}
+                                    {product.stock <= LOW_STOCK_THRESHOLD && <span className="text-[10px] ml-1 block sm:inline">(Baixo)</span>}
                                 </td>
-                                <td className="p-4">
+                                <td className="px-4 py-4">
                                     <div className="flex items-center space-x-3">
                                         <button onClick={() => handleEdit(product)} className="text-gray-400 hover:text-indigo-400 transition-colors"><PencilIcon className="w-5 h-5" /></button>
                                         <button onClick={() => handleDelete(product.id)} className="text-gray-400 hover:text-red-400 transition-colors"><TrashIcon className="w-5 h-5" /></button>

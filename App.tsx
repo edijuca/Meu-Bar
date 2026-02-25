@@ -9,7 +9,7 @@ import Reports from './components/Reports';
 import Users from './components/Users';
 import LoginScreen from './components/auth/LoginScreen';
 import SalesHistory from './components/SalesHistory';
-import { ChartBarIcon, ShoppingCartIcon, UsersIcon, CubeIcon, Cog6ToothIcon, DocumentChartBarIcon, ExclamationTriangleIcon, XMarkIcon, LogoutIcon, BanknotesIcon } from './components/icons';
+import { ChartBarIcon, ShoppingCartIcon, UsersIcon, CubeIcon, Cog6ToothIcon, DocumentChartBarIcon, ExclamationTriangleIcon, XMarkIcon, LogoutIcon, BanknotesIcon, MenuIcon } from './components/icons';
 import { LOW_STOCK_THRESHOLD } from './constants';
 import { Product } from './types';
 
@@ -56,7 +56,7 @@ type View = 'dashboard' | 'sales' | 'customers' | 'products' | 'reports' | 'sett
 const NavItem: React.FC<{ icon: React.ReactNode; label: string; isActive: boolean; onClick: () => void; }> = ({ icon, label, isActive, onClick }) => (
     <button
         onClick={onClick}
-        className={`flex flex-col items-center justify-center space-y-1 w-full py-2 px-1 text-xs md:flex-row md:justify-start md:space-y-0 md:space-x-3 md:px-4 md:py-3 md:text-sm rounded-lg transition-colors ${
+        className={`flex items-center space-x-3 w-full px-4 py-3 text-sm rounded-lg transition-colors ${
             isActive ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'
         }`}
     >
@@ -68,6 +68,7 @@ const NavItem: React.FC<{ icon: React.ReactNode; label: string; isActive: boolea
 const AppLayout: React.FC = () => {
     const { state, actions } = useContext(AppContext);
     const { currentView } = state;
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     const lowStockProducts = useMemo(
         () => state.products.filter(p => p.stock <= LOW_STOCK_THRESHOLD),
@@ -75,6 +76,11 @@ const AppLayout: React.FC = () => {
     );
     
     const lowStockCount = lowStockProducts.length;
+
+    const handleViewChange = (view: View) => {
+        actions.setView(view);
+        setIsMobileMenuOpen(false);
+    };
 
     const renderView = () => {
         switch (currentView) {
@@ -91,39 +97,62 @@ const AppLayout: React.FC = () => {
     };
     
     return (
-        <div className="flex flex-col md:flex-row h-screen font-sans">
-            <nav className="bg-gray-800 w-full md:w-56 p-2 md:p-4 order-last md:order-first flex md:flex-col justify-around md:justify-start">
+        <div className="flex flex-col md:flex-row h-screen font-sans bg-gray-900 overflow-hidden">
+            {/* Mobile Header */}
+            <header className="md:hidden bg-gray-800 border-b border-gray-700 p-4 flex justify-between items-center z-30">
+                <h1 className="text-xl font-bold text-white">{state.barInfo.name || 'Bar POS'}</h1>
+                <button 
+                    onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                    className="p-2 text-gray-400 hover:text-white focus:outline-none"
+                >
+                    {isMobileMenuOpen ? <XMarkIcon className="w-6 h-6" /> : <MenuIcon className="w-6 h-6" />}
+                </button>
+            </header>
+
+            {/* Sidebar / Mobile Menu Overlay */}
+            <div 
+                className={`fixed inset-0 bg-black/50 z-40 transition-opacity md:hidden ${isMobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                onClick={() => setIsMobileMenuOpen(false)}
+            />
+
+            <nav className={`
+                fixed inset-y-0 left-0 w-64 bg-gray-800 p-4 z-50 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 md:flex md:flex-col md:w-56
+                ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+            `}>
                 <div className="hidden md:block mb-6">
                     <h1 className="text-2xl font-bold text-white text-center">{state.barInfo.name || 'Bar POS'}</h1>
                 </div>
-                <div className="flex-grow flex md:flex-col justify-around md:justify-start md:space-y-2">
-                    <NavItem icon={<ChartBarIcon className="w-6 h-6" />} label="Dashboard" isActive={currentView === 'dashboard'} onClick={() => actions.setView('dashboard')}/>
-                    <NavItem icon={<ShoppingCartIcon className="w-6 h-6" />} label="Atendimento" isActive={currentView === 'sales'} onClick={() => actions.setView('sales')}/>
-                    <NavItem icon={<BanknotesIcon className="w-6 h-6" />} label="Vendas" isActive={currentView === 'sales_history'} onClick={() => actions.setView('sales_history')}/>
-                    <NavItem icon={<UsersIcon className="w-6 h-6" />} label="Clientes" isActive={currentView === 'customers'} onClick={() => actions.setView('customers')}/>
-                    <NavItem icon={<UsersIcon className="w-6 h-6" />} label="Usuários" isActive={currentView === 'users'} onClick={() => actions.setView('users')}/>
+                
+                <div className="flex-grow space-y-2 overflow-y-auto">
+                    <NavItem icon={<ChartBarIcon className="w-6 h-6" />} label="Dashboard" isActive={currentView === 'dashboard'} onClick={() => handleViewChange('dashboard')}/>
+                    <NavItem icon={<ShoppingCartIcon className="w-6 h-6" />} label="Atendimento" isActive={currentView === 'sales'} onClick={() => handleViewChange('sales')}/>
+                    <NavItem icon={<BanknotesIcon className="w-6 h-6" />} label="Vendas" isActive={currentView === 'sales_history'} onClick={() => handleViewChange('sales_history')}/>
+                    <NavItem icon={<UsersIcon className="w-6 h-6" />} label="Clientes" isActive={currentView === 'customers'} onClick={() => handleViewChange('customers')}/>
+                    <NavItem icon={<UsersIcon className="w-6 h-6" />} label="Usuários" isActive={currentView === 'users'} onClick={() => handleViewChange('users')}/>
                     <div className="relative w-full">
-                        <NavItem icon={<CubeIcon className="w-6 h-6" />} label="Produtos" isActive={currentView === 'products'} onClick={() => actions.setView('products')}/>
+                        <NavItem icon={<CubeIcon className="w-6 h-6" />} label="Produtos" isActive={currentView === 'products'} onClick={() => handleViewChange('products')}/>
                         {lowStockCount > 0 && (
-                            <span className="absolute top-1 right-1 md:top-2 md:right-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white shadow-md" aria-label={`${lowStockCount} products with low stock`}>
+                            <span className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white shadow-md">
                                 {lowStockCount}
                             </span>
                         )}
                     </div>
-                     <NavItem icon={<DocumentChartBarIcon className="w-6 h-6" />} label="Relatórios" isActive={currentView === 'reports'} onClick={() => actions.setView('reports')}/>
-                     <NavItem icon={<Cog6ToothIcon className="w-6 h-6" />} label="Configurações" isActive={currentView === 'settings'} onClick={() => actions.setView('settings')}/>
+                     <NavItem icon={<DocumentChartBarIcon className="w-6 h-6" />} label="Relatórios" isActive={currentView === 'reports'} onClick={() => handleViewChange('reports')}/>
+                     <NavItem icon={<Cog6ToothIcon className="w-6 h-6" />} label="Configurações" isActive={currentView === 'settings'} onClick={() => handleViewChange('settings')}/>
                 </div>
-                <div className="hidden md:block mt-auto">
+
+                <div className="mt-auto pt-4 border-t border-gray-700">
                      <button
                         onClick={actions.logout}
-                        className='flex items-center justify-center space-x-3 w-full px-4 py-3 text-sm rounded-lg transition-colors text-gray-400 hover:bg-red-800/50 hover:text-white'
+                        className='flex items-center space-x-3 w-full px-4 py-3 text-sm rounded-lg transition-colors text-gray-400 hover:bg-red-800/50 hover:text-white'
                     >
                         <LogoutIcon className="w-6 h-6" />
                         <span>Sair</span>
                     </button>
                 </div>
             </nav>
-            <main className="flex-1 bg-gray-900 overflow-y-auto">
+
+            <main className="flex-1 overflow-y-auto relative">
                 {renderView()}
             </main>
             <LowStockNotification lowStockProducts={lowStockProducts} />

@@ -175,25 +175,25 @@ const Customers: React.FC = () => {
 
     return (
         <div className="p-4 md:p-6">
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-white">Clientes</h1>
-                <button onClick={() => { setEditingCustomer(undefined); setIsModalOpen(true); }} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md flex items-center gap-2 transition-colors">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                <h1 className="text-2xl md:text-3xl font-bold text-white">Clientes</h1>
+                <button onClick={() => { setEditingCustomer(undefined); setIsModalOpen(true); }} className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md flex items-center justify-center gap-2 transition-colors">
                     <PlusIcon className="w-5 h-5" />
                     Novo Cliente
                 </button>
             </div>
             
             {totalOutstandingDebt > 0 && (
-                <div className="bg-red-800/60 border border-red-700/80 p-4 rounded-lg shadow-md mb-6 flex items-center gap-4">
+                <div className="bg-red-800/60 border border-red-700/80 p-4 rounded-lg shadow-md mb-6 flex items-center gap-3 md:gap-4">
                     <div className="flex-shrink-0">
-                        <BanknotesIcon className="h-8 w-8 text-red-300" />
+                        <BanknotesIcon className="h-6 w-6 md:h-8 md:w-8 text-red-300" />
                     </div>
-                    <div className="flex-grow flex justify-between items-center">
+                    <div className="flex-grow flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
                         <div>
-                            <h2 className="text-lg font-semibold text-red-200">Total em Aberto (Fiado)</h2>
-                            <p className="text-xs text-red-300">Soma de todas as dívidas de clientes.</p>
+                            <h2 className="text-sm md:text-lg font-semibold text-red-200 leading-tight">Total em Aberto (Fiado)</h2>
+                            <p className="hidden sm:block text-[10px] md:text-xs text-red-300">Soma de todas as dívidas de clientes.</p>
                         </div>
-                        <p className="text-2xl font-bold text-white">
+                        <p className="text-xl md:text-2xl font-bold text-white">
                             {totalOutstandingDebt.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                         </p>
                     </div>
@@ -213,15 +213,15 @@ const Customers: React.FC = () => {
                     {filteredCustomers.map(customer => {
                         const debt = customerDebts.get(customer.id);
                         return (
-                            <li key={customer.id} className="p-4 hover:bg-gray-700/50 transition-colors flex items-center justify-between">
-                                <div className="cursor-pointer flex-grow" onClick={() => setSelectedCustomer(customer)}>
-                                    <p className="font-semibold text-white">{customer.name}</p>
-                                    <p className="text-sm text-gray-400">{customer.phone}</p>
-                                    {debt && <p className="text-sm text-red-400 font-semibold">Débito: {debt.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}
+                            <li key={customer.id} className="p-4 hover:bg-gray-700/50 transition-colors flex items-center justify-between gap-4">
+                                <div className="cursor-pointer flex-grow min-w-0" onClick={() => setSelectedCustomer(customer)}>
+                                    <p className="font-semibold text-white truncate">{customer.name}</p>
+                                    <p className="text-xs md:text-sm text-gray-400 truncate">{customer.phone}</p>
+                                    {debt && <p className="text-xs md:text-sm text-red-400 font-semibold">Débito: {debt.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}
                                 </div>
-                                <div className="flex items-center space-x-3">
-                                    <button onClick={() => handleEdit(customer)} className="text-gray-400 hover:text-indigo-400 transition-colors"><PencilIcon className="w-5 h-5" /></button>
-                                    <button onClick={() => handleDelete(customer.id)} className="text-gray-400 hover:text-red-400 transition-colors"><TrashIcon className="w-5 h-5" /></button>
+                                <div className="flex items-center space-x-2 md:space-x-3 flex-shrink-0">
+                                    <button onClick={() => handleEdit(customer)} className="p-1 text-gray-400 hover:text-indigo-400 transition-colors"><PencilIcon className="w-5 h-5" /></button>
+                                    <button onClick={() => handleDelete(customer.id)} className="p-1 text-gray-400 hover:text-red-400 transition-colors"><TrashIcon className="w-5 h-5" /></button>
                                 </div>
                             </li>
                         );

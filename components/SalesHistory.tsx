@@ -52,43 +52,46 @@ const SalesHistory: React.FC = () => {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-gray-700 text-gray-300 uppercase text-xs font-semibold tracking-wider">
-                                <th className="px-6 py-4">Data/Hora</th>
-                                <th className="px-6 py-4">Cliente</th>
-                                <th className="px-6 py-4">Método</th>
-                                <th className="px-6 py-4">Status</th>
-                                <th className="px-6 py-4 text-right">Total</th>
-                                <th className="px-6 py-4 text-center">Ações</th>
+                                <th className="px-3 md:px-6 py-4">Data/Hora</th>
+                                <th className="px-3 md:px-6 py-4">Cliente</th>
+                                <th className="hidden sm:table-cell px-3 md:px-6 py-4">Método</th>
+                                <th className="px-3 md:px-6 py-4">Status</th>
+                                <th className="px-3 md:px-6 py-4 text-right">Total</th>
+                                <th className="px-3 md:px-6 py-4 text-center">Ações</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-700">
                             {filteredSales.length > 0 ? (
                                 filteredSales.map((sale) => (
                                     <tr key={sale.id} className="hover:bg-gray-700/50 transition-colors">
-                                        <td className="px-6 py-4 text-sm text-gray-300">
-                                            {new Date(sale.date).toLocaleString('pt-BR')}
+                                        <td className="px-3 md:px-6 py-4 text-xs md:text-sm text-gray-300">
+                                            {new Date(sale.date).toLocaleDateString('pt-BR')}
+                                            <span className="block text-[10px] md:text-xs text-gray-500">
+                                                {new Date(sale.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                            </span>
                                         </td>
-                                        <td className="px-6 py-4 text-sm font-medium text-white">
+                                        <td className="px-3 md:px-6 py-4 text-xs md:text-sm font-medium text-white truncate max-w-[100px] md:max-w-none">
                                             {getCustomerName(sale.customerId)}
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-gray-400">
+                                        <td className="hidden sm:table-cell px-3 md:px-6 py-4 text-xs md:text-sm text-gray-400">
                                             {sale.paymentMethod}
                                         </td>
-                                        <td className="px-6 py-4 text-sm">
-                                            <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                                        <td className="px-3 md:px-6 py-4 text-xs md:text-sm">
+                                            <span className={`px-2 py-0.5 md:py-1 rounded-full text-[10px] md:text-xs font-bold ${
                                                 sale.paymentStatus === 'Pago' ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'
                                             }`}>
                                                 {sale.paymentStatus}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-sm font-bold text-white text-right">
+                                        <td className="px-3 md:px-6 py-4 text-xs md:text-sm font-bold text-white text-right">
                                             {sale.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </td>
-                                        <td className="px-6 py-4 text-center">
+                                        <td className="px-3 md:px-6 py-4 text-center">
                                             <button
                                                 onClick={() => setSelectedSale(sale)}
-                                                className="text-indigo-400 hover:text-indigo-300 font-medium text-sm"
+                                                className="text-indigo-400 hover:text-indigo-300 font-medium text-xs md:text-sm"
                                             >
-                                                Ver Detalhes
+                                                Ver
                                             </button>
                                         </td>
                                     </tr>

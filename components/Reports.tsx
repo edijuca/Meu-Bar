@@ -128,18 +128,18 @@ const Reports: React.FC = () => {
         <div className="p-4 md:p-6 space-y-6">
             <h1 className="text-3xl font-bold text-white">Relatório de Atendimentos</h1>
 
-            <div className="bg-gray-800 p-4 rounded-lg shadow-lg flex flex-col md:flex-row gap-4 justify-between items-center">
-                <div className="flex items-center gap-2 flex-wrap">
-                    <PeriodButton label="Últimos 7 dias" value="7d" />
-                    <PeriodButton label="Este Mês" value="month" />
-                    <PeriodButton label="Este Ano" value="year" />
-                    <PeriodButton label="Customizado" value="custom" />
+            <div className="bg-gray-800 p-4 rounded-lg shadow-lg flex flex-col gap-4">
+                <div className="flex items-center gap-2 flex-wrap justify-center md:justify-start">
+                    <PeriodButton label="7 dias" value="7d" />
+                    <PeriodButton label="Mês" value="month" />
+                    <PeriodButton label="Ano" value="year" />
+                    <PeriodButton label="Custom" value="custom" />
                 </div>
                 {period === 'custom' && (
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-indigo-500"/>
-                        <span className="text-gray-400">até</span>
-                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-indigo-500"/>
+                    <div className="flex flex-col sm:flex-row items-center gap-2 justify-center md:justify-start">
+                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full sm:w-auto bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-indigo-500 text-sm"/>
+                        <span className="text-gray-400 text-sm">até</span>
+                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full sm:w-auto bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-indigo-500 text-sm"/>
                     </div>
                 )}
             </div>

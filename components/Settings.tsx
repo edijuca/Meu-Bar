@@ -112,7 +112,7 @@ const Settings: React.FC = () => {
                     <button 
                         onClick={handleResetSales}
                         disabled={isResetting}
-                        className={`bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md transition-colors ${isResetting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className={`w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md transition-colors ${isResetting ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                         {isResetting ? 'Resetando...' : 'Resetar Todas as Vendas'}
                     </button>

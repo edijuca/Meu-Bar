@@ -4,7 +4,7 @@ import { AppContext } from '../context/AppContext';
 import { Customer, Product, SaleItem, HeldOrder } from '../types';
 import { PaymentMethod } from '../constants';
 import Modal from './common/Modal';
-import { CreditCardIcon, PauseIcon, TrashIcon, BanknotesIcon } from './icons';
+import { CreditCardIcon, PauseIcon, TrashIcon, BanknotesIcon, ShoppingCartIcon } from './icons';
 
 const Sales: React.FC = () => {
     const { state, actions } = useContext(AppContext);
@@ -18,6 +18,7 @@ const Sales: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [clearingSaleIds, setClearingSaleIds] = useState<string[]>([]);
     const [initialItems, setInitialItems] = useState<SaleItem[]>([]);
+    const [showCartOnMobile, setShowCartOnMobile] = useState(false);
 
     // Load active sale from context if available
     React.useEffect(() => {
@@ -259,10 +260,18 @@ const Sales: React.FC = () => {
     }
 
     return (
-        <div className="p-4 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+        <div className="p-4 md:p-6 flex flex-col lg:grid lg:grid-cols-3 gap-6 h-full overflow-hidden">
             {/* Left side - Product List */}
-            <div className="lg:col-span-2 bg-gray-800 p-4 rounded-lg shadow-lg flex flex-col">
-                <h2 className="text-2xl font-bold text-white mb-4">Adicionar Produtos</h2>
+            <div className={`lg:col-span-2 bg-gray-800 p-4 rounded-lg shadow-lg flex flex-col overflow-hidden ${showCartOnMobile ? 'hidden lg:flex' : 'flex'}`}>
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl md:text-2xl font-bold text-white">Adicionar Produtos</h2>
+                    <button 
+                        onClick={() => setShowCartOnMobile(true)}
+                        className="lg:hidden bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2"
+                    >
+                        Ver Comanda ({currentSaleItems.length})
+                    </button>
+                </div>
                 <input
                     type="text"
                     placeholder="Buscar produto..."
@@ -271,11 +280,11 @@ const Sales: React.FC = () => {
                     className="w-full bg-gray-900 border border-gray-700 rounded-md py-2 px-4 text-white mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
                 <div className="flex-grow overflow-y-auto pr-2">
-                    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
                         {filteredProducts.map(product => (
-                            <button key={product.id} onClick={() => handleAddProduct(product)} className="bg-gray-700 hover:bg-indigo-600 transition-colors rounded-lg p-4 text-center shadow-md flex flex-col justify-between">
-                                <p className="font-semibold text-white">{product.name}</p>
-                                <p className="text-sm text-gray-400 mt-2">{product.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                            <button key={product.id} onClick={() => handleAddProduct(product)} className="bg-gray-700 hover:bg-indigo-600 transition-colors rounded-lg p-3 md:p-4 text-center shadow-md flex flex-col justify-between min-h-[100px]">
+                                <p className="font-semibold text-white text-sm md:text-base line-clamp-2">{product.name}</p>
+                                <p className="text-xs md:text-sm text-gray-400 mt-2">{product.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                             </button>
                         ))}
                     </div>
@@ -283,42 +292,57 @@ const Sales: React.FC = () => {
             </div>
 
             {/* Right side - Current Sale */}
-            <div className="bg-gray-800 p-4 rounded-lg shadow-lg flex flex-col">
-                <h2 className="text-2xl font-bold text-white mb-4">Comanda</h2>
+            <div className={`bg-gray-800 p-4 rounded-lg shadow-lg flex flex-col overflow-hidden ${!showCartOnMobile ? 'hidden lg:flex' : 'flex'}`}>
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl md:text-2xl font-bold text-white">Comanda</h2>
+                    <button 
+                        onClick={() => setShowCartOnMobile(false)}
+                        className="lg:hidden text-gray-400 hover:text-white"
+                    >
+                        Voltar para Produtos
+                    </button>
+                </div>
                 <div className="bg-gray-900/50 p-3 rounded-md mb-4">
-                    <p className="text-gray-400">Cliente:</p>
-                    <p className="text-xl font-semibold text-white">{selectedCustomer?.name}</p>
+                    <p className="text-xs text-gray-400">Cliente:</p>
+                    <p className="text-lg font-semibold text-white truncate">{selectedCustomer?.name}</p>
                 </div>
                 <div className="flex-grow overflow-y-auto space-y-2 pr-2 mb-4">
-                    {currentSaleItems.map(item => {
-                        const product = products.find(p => p.id === item.productId);
-                        if (!product) return null;
-                        return (
-                            <div key={item.productId} className="flex items-center justify-between bg-gray-700 p-2 rounded-md">
-                                <div className="flex-grow">
-                                    <p className="text-white font-medium">{product.name}</p>
-                                    <p className="text-gray-400 text-sm">{item.subtotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                    {currentSaleItems.length > 0 ? (
+                        currentSaleItems.map(item => {
+                            const product = products.find(p => p.id === item.productId);
+                            if (!product) return null;
+                            return (
+                                <div key={item.productId} className="flex items-center justify-between bg-gray-700 p-2 rounded-md">
+                                    <div className="flex-grow min-w-0 mr-2">
+                                        <p className="text-white font-medium text-sm truncate">{product.name}</p>
+                                        <p className="text-gray-400 text-xs">{item.subtotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                        <input type="number" value={item.quantity} onChange={(e) => handleUpdateQuantity(item.productId, parseInt(e.target.value, 10) || 0)} className="w-12 md:w-16 bg-gray-800 text-white text-center rounded-md border border-gray-600 p-1 text-sm"/>
+                                        <button onClick={() => handleUpdateQuantity(item.productId, 0)} className="text-red-400 hover:text-red-300"><TrashIcon className="w-5 h-5"/></button>
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <input type="number" value={item.quantity} onChange={(e) => handleUpdateQuantity(item.productId, parseInt(e.target.value, 10) || 0)} className="w-16 bg-gray-800 text-white text-center rounded-md border border-gray-600 p-1"/>
-                                    <button onClick={() => handleUpdateQuantity(item.productId, 0)} className="text-red-400 hover:text-red-300"><TrashIcon className="w-5 h-5"/></button>
-                                </div>
-                            </div>
-                        );
-                    })}
+                            );
+                        })
+                    ) : (
+                        <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                            <ShoppingCartIcon className="w-12 h-12 mb-2 opacity-20" />
+                            <p>Comanda vazia</p>
+                        </div>
+                    )}
                 </div>
                 <div className="border-t border-gray-700 pt-4">
-                    <div className="flex justify-between items-center text-2xl font-bold text-white mb-4">
+                    <div className="flex justify-between items-center text-xl md:text-2xl font-bold text-white mb-4">
                         <span>Total:</span>
                         <span>{saleTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
-                        <button onClick={resetSale} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-md transition-colors">Cancelar</button>
-                        <button onClick={handleHoldOrder} disabled={currentSaleItems.length === 0} className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-4 rounded-md transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <button onClick={resetSale} className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 md:py-3 px-4 rounded-md transition-colors text-sm md:text-base">Cancelar</button>
+                        <button onClick={handleHoldOrder} disabled={currentSaleItems.length === 0} className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 md:py-3 px-4 rounded-md transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm md:text-base">
                             <PauseIcon className="w-5 h-5"/>
                             Pausar
                         </button>
-                        <button onClick={() => setIsFinalizeModalOpen(true)} disabled={currentSaleItems.length === 0} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-md transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                        <button onClick={() => setIsFinalizeModalOpen(true)} disabled={currentSaleItems.length === 0} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 md:py-3 px-4 rounded-md transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm md:text-base">
                             <CreditCardIcon className="w-5 h-5" />
                             Finalizar
                         </button>
