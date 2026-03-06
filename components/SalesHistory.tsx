@@ -17,8 +17,8 @@ const SalesHistory: React.FC = () => {
     const filteredSales = useMemo(() => {
         return sortedSales.filter(sale => {
             const customer = customers.find(c => c.id === sale.customerId);
-            const customerName = customer?.name.toLowerCase() || '';
-            const saleId = sale.id.toLowerCase();
+            const customerName = (customer?.name || '').toLowerCase();
+            const saleId = (sale.id || '').toLowerCase();
             const search = searchTerm.toLowerCase();
             return customerName.includes(search) || saleId.includes(search);
         });

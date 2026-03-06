@@ -277,8 +277,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       },
       addUser: async (name: string, email: string, password: string) => {
         const newUser = await apiService.addUser(name, email, password);
-        const users = await apiService.getUsersList();
-        dispatch({ type: 'SET_USERS', payload: users });
+        // We add the new user to the local state immediately
+        dispatch({ type: 'SET_USERS', payload: [...state.users, newUser] });
+        alert('Usuário criado com sucesso! Se o login não funcionar, verifique se a confirmação de e-mail está desativada no Supabase.');
       },
       setView: (view: AppState['currentView']) => {
         dispatch({ type: 'SET_VIEW', payload: view });

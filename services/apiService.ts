@@ -25,8 +25,26 @@ export const MOCK_INITIAL_DATA: AppData = {
 
 class ApiService {
     async addUser(name: string, email: string, password: string): Promise<User> {
-        // This is essentially the same as register for now
-        return this.register(name, email, password);
+        // To create a user without logging out the current admin, 
+        // we would ideally use the Admin API, but since we don't have the service key,
+        // we use signUp. Note: This might still trigger a session change in some environments.
+        const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                data: { name }
+            }
+        });
+
+        if (error) throw error;
+        if (!data.user) throw new Error('Falha ao criar usuário.');
+
+        // We return the user info. The admin will need to refresh or we handle state.
+        return {
+            id: data.user.id,
+            name: data.user.user_metadata.name || name,
+            email: data.user.email || email
+        };
     }
 
     async register(name: string, email: string, password: string): Promise<User> {
@@ -336,8 +354,13 @@ class ApiService {
     }
 
     async getUsersList(): Promise<User[]> {
+        // RLS on profiles table only allows viewing own profile by default.
+        // We attempt to fetch all, but it will only return what RLS allows.
         const { data, error } = await supabase.from('profiles').select('*');
-        if (error) throw error;
+        if (error) {
+            console.error('Error fetching users:', error);
+            return [];
+        }
         return data.map(p => ({ id: p.id, name: p.name, email: p.email }));
     }
 
@@ -349,7 +372,10 @@ class ApiService {
     }
 
     async updateUser(user: User): Promise<void> {
-        const { error } = await supabase.from('profiles').update({ name: user.name }).eq('id', user.id);
+        const { error } = await supabase.from('profiles').update({ 
+            name: user.name,
+            email: user.email 
+        }).eq('id', user.id);
         if (error) throw error;
     }
 }

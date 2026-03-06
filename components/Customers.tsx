@@ -115,7 +115,7 @@ const Customers: React.FC = () => {
 
     const filteredCustomers = useMemo(() => 
         customers.filter(customer =>
-            customer.name.toLowerCase().includes(searchTerm.toLowerCase())
+            (customer.name || '').toLowerCase().includes(searchTerm.toLowerCase())
         ), [customers, searchTerm]
     );
 

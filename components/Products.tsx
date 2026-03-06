@@ -61,7 +61,7 @@ const Products: React.FC = () => {
 
     const filteredProducts = useMemo(() =>
         products.filter(product =>
-            product.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+            (product.name || '').toLowerCase().includes(searchTerm.toLowerCase()) &&
             (categoryFilter === 'Todos' || categoryFilter === '' || product.category === categoryFilter)
         ), [products, searchTerm, categoryFilter]
     );
